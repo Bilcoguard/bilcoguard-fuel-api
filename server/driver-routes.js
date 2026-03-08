@@ -46,6 +46,28 @@ router.get('/profile', driverAuth, (req, res) => {
   res.json({ ...driver, today_earnings: todayEarnings.amount });
 });
 
+// Update driver profile
+router.put('/profile', driverAuth, (req, res) => {
+  const { name, phone, licence_number } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+
+  db.prepare('UPDATE drivers SET name = ?, phone = ?, licence_number = ? WHERE id = ?')
+    .run(name.trim(), phone?.trim() || null, licence_number?.trim() || null, req.driver.id);
+
+  const driver = db.prepare('SELECT id, email, name, phone, plate, licence_number, rating, total_deliveries, status, created_at FROM drivers WHERE id = ?').get(req.driver.id);
+  if (!driver) return res.status(404).json({ error: 'Driver not found' });
+
+  // Today's earnings
+  const todayEarnings = db.prepare(`
+    SELECT COALESCE(SUM(total * 0.15), 0) as amount FROM orders
+    WHERE driver_id = ? AND status = 'delivered' AND DATE(updated_at) = DATE('now')
+  `).get(req.driver.id);
+
+  res.json({ ...driver, today_earnings: todayEarnings.amount });
+});
+
 // Update driver status
 router.put('/status', driverAuth, (req, res) => {
   const { status } = req.body;

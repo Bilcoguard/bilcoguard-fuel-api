@@ -258,6 +258,51 @@ router.get('/vehicles', adminAuth, (req, res) => {
   res.json(vehicles);
 });
 
+// Vehicle locations with GPS data for fleet tracker
+router.get('/vehicles/locations', adminAuth, (req, res) => {
+  const vehicles = db.prepare(`
+    SELECT v.id, v.name, v.plate, d.name as driver_name,
+           COALESCE(o.status, 'idle') as status
+    FROM vehicles v
+    LEFT JOIN drivers d ON v.id = d.vehicle_id
+    LEFT JOIN orders o ON d.id = o.driver_id AND o.status IN ('en_route', 'arriving', 'fueling', 'driver_assigned')
+  `).all();
+
+  // Generate mock GPS locations around Lusaka, Zambia
+  const lusaka = { lat: -15.4167, lng: 28.2833 };
+  const radius = 0.15; // ~15km radius
+
+  const locations = vehicles.map((v, idx) => {
+    // Pseudo-random but consistent location based on vehicle id
+    const seed = v.id.charCodeAt(0) + v.id.charCodeAt(v.id.length - 1);
+    const angle = (seed * 137.5) % 360; // Golden angle for distribution
+    const distance = (seed % 100) / 100 * radius;
+
+    const lat = lusaka.lat + (distance * Math.cos(angle * Math.PI / 180));
+    const lng = lusaka.lng + (distance * Math.sin(angle * Math.PI / 180));
+
+    const isActive = v.status && v.status !== 'idle';
+
+    return {
+      id: v.id,
+      name: v.name,
+      plate: v.plate,
+      driver_name: v.driver_name,
+      status: isActive ? 'delivering' : 'idle',
+      lat: lat,
+      lng: lng,
+      // If on delivery, add destination
+      ...(isActive && {
+        destination_lat: lusaka.lat + (Math.random() - 0.5) * 0.2,
+        destination_lng: lusaka.lng + (Math.random() - 0.5) * 0.2,
+        route_progress: Math.floor(Math.random() * 80) + 10
+      })
+    };
+  });
+
+  res.json(locations);
+});
+
 // Fuel prices - update
 router.put('/prices/:id', adminAuth, (req, res) => {
   const { price_per_litre } = req.body;
