@@ -1,0 +1,2254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilcoguard Fuel - Admin Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --royal-blue: #2E3192;
+            --sky-blue: #00BFFF;
+            --grey: #A7A8AB;
+            --off-white: #F1F1F1;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --white: #FFFFFF;
+            --dark-grey: #4B5563;
+            --light-grey: #E5E7EB;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--off-white);
+            color: #333;
+        }
+
+        /* Login Screen */
+        .login-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--royal-blue) 0%, var(--sky-blue) 100%);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .login-container.active {
+            display: flex;
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h1 {
+            color: var(--royal-blue);
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .login-box p {
+            color: var(--grey);
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--light-grey);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--sky-blue);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--royal-blue) 0%, var(--sky-blue) 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Main Layout */
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+            background-color: var(--off-white);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background-color: var(--royal-blue);
+            color: white;
+            padding: 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-logo {
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: var(--sky-blue);
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .nav-link:hover {
+            color: var(--sky-blue);
+        }
+
+        .nav-icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 10px;
+        }
+
+        .logout-btn {
+            flex: 1;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+
+        .logout-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.sidebar-hidden {
+            margin-left: 0;
+        }
+
+        .header {
+            background-color: white;
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--light-grey);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title h1 {
+            font-size: 24px;
+            color: var(--royal-blue);
+            margin: 0;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .search-box {
+            padding: 8px 15px;
+            border: 1px solid var(--light-grey);
+            border-radius: 6px;
+            width: 200px;
+            font-size: 14px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--royal-blue), var(--sky-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Cards and Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-top: 4px solid var(--sky-blue);
+        }
+
+        .stat-card.success {
+            border-top-color: var(--success);
+        }
+
+        .stat-card.warning {
+            border-top-color: var(--warning);
+        }
+
+        .stat-card.danger {
+            border-top-color: var(--danger);
+        }
+
+        .stat-label {
+            color: var(--grey);
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--royal-blue);
+        }
+
+        .stat-change {
+            font-size: 12px;
+            margin-top: 8px;
+            color: var(--grey);
+        }
+
+        .stat-change.positive {
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            color: var(--danger);
+        }
+
+        /* Charts */
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--royal-blue);
+        }
+
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            height: 200px;
+            justify-content: space-around;
+        }
+
+        .bar-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bar {
+            width: 100%;
+            background: linear-gradient(180deg, var(--sky-blue) 0%, var(--royal-blue) 100%);
+            border-radius: 6px 6px 0 0;
+            min-height: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .bar:hover {
+            filter: brightness(1.1);
+        }
+
+        .bar-label {
+            font-size: 12px;
+            color: var(--grey);
+            text-align: center;
+        }
+
+        .bar-value {
+            font-size: 12px;
+            color: var(--royal-blue);
+            font-weight: 600;
+        }
+
+        /* Tables */
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--light-grey);
+        }
+
+        .table-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--royal-blue);
+        }
+
+        .table-filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-input, .filter-select {
+            padding: 8px 12px;
+            border: 1px solid var(--light-grey);
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            color: #333;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: var(--sky-blue);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background-color: var(--off-white);
+        }
+
+        th {
+            padding: 15px 20px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: #333;
+            border-bottom: 2px solid var(--light-grey);
+            text-transform: uppercase;
+            color: var(--grey);
+        }
+
+        td {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--light-grey);
+            font-size: 13px;
+        }
+
+        tr:hover {
+            background-color: var(--off-white);
+        }
+
+        /* Status Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            background-color: #D1F4EA;
+            color: var(--success);
+        }
+
+        .badge-warning {
+            background-color: #FEF3C7;
+            color: var(--warning);
+        }
+
+        .badge-danger {
+            background-color: #FEE2E2;
+            color: var(--danger);
+        }
+
+        .badge-info {
+            background-color: #DBEAFE;
+            color: var(--sky-blue);
+        }
+
+        .badge-secondary {
+            background-color: #E5E7EB;
+            color: var(--dark-grey);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--royal-blue) 0%, var(--sky-blue) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(46, 49, 146, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: var(--light-grey);
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background-color: #D1D5DB;
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* Grid Layouts */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .dispatch-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--royal-blue);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--grey);
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* Driver Cards */
+        .driver-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .driver-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-top: 4px solid var(--sky-blue);
+        }
+
+        .driver-info {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .driver-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--royal-blue), var(--sky-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .driver-details h3 {
+            margin: 0;
+            color: var(--royal-blue);
+            font-size: 16px;
+        }
+
+        .driver-rating {
+            color: var(--warning);
+            font-size: 13px;
+            margin: 4px 0;
+        }
+
+        .driver-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--light-grey);
+        }
+
+        .driver-stat {
+            text-align: center;
+        }
+
+        .driver-stat-label {
+            font-size: 12px;
+            color: var(--grey);
+        }
+
+        .driver-stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--royal-blue);
+        }
+
+        .driver-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .status-toggle {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid var(--light-grey);
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+            color: #333;
+        }
+
+        .status-toggle.active {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: auto;
+                max-height: 60px;
+                overflow: visible;
+            }
+
+            .sidebar-toggle {
+                display: block;
+            }
+
+            .nav-menu {
+                display: none;
+            }
+
+            .nav-menu.open {
+                display: block;
+                position: absolute;
+                top: 60px;
+                left: 0;
+                right: 0;
+                background-color: rgba(0, 0, 0, 0.1);
+                padding: 0;
+                max-height: calc(100vh - 60px);
+                overflow-y: auto;
+            }
+
+            .sidebar-footer {
+                position: relative;
+                margin-top: 10px;
+            }
+
+            .nav-item {
+                border-left: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .main-content {
+                margin-left: 0;
+                margin-top: 60px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+
+            .dispatch-view {
+                grid-template-columns: 1fr;
+            }
+
+            .driver-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .table-filters {
+                flex-direction: column;
+            }
+
+            .filter-input, .filter-select {
+                width: 100%;
+            }
+
+            .bar-chart {
+                height: 150px;
+            }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--grey);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--sky-blue);
+            border-radius: 50%;
+            animation: loading 1.4s infinite;
+        }
+
+        @keyframes loading {
+            0%, 80%, 100% { opacity: 0.3; }
+            40% { opacity: 1; }
+        }
+
+        /* Editable Fields */
+        .editable-cell {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .edit-input {
+            width: 100%;
+            padding: 6px;
+            border: 2px solid var(--sky-blue);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* Price Cards */
+        .price-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .price-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--sky-blue);
+        }
+
+        .price-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .price-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--royal-blue);
+        }
+
+        .price-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--sky-blue);
+            margin-bottom: 15px;
+        }
+
+        .price-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Activity List */
+        .activity-list {
+            list-style: none;
+        }
+
+        .activity-item {
+            padding: 15px;
+            border-bottom: 1px solid var(--light-grey);
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--off-white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--sky-blue);
+        }
+
+        .activity-content h4 {
+            margin: 0 0 4px 0;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .activity-content p {
+            margin: 0;
+            color: var(--grey);
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-box">
+            <h1>Bilcoguard Fuel</h1>
+            <p>Admin Portal</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="admin@bilcoguard.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Admin Container -->
+    <div class="admin-container" id="adminContainer" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span>⛽</span>
+                    <span>Bilcoguard</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+            </div>
+
+            <ul class="nav-menu" id="navMenu">
+                <li class="nav-item active" data-section="dashboard">
+                    <a class="nav-link">
+                        <span class="nav-icon">📊</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="orders">
+                    <a class="nav-link">
+                        <span class="nav-icon">📦</span>
+                        <span>Orders</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="dispatch">
+                    <a class="nav-link">
+                        <span class="nav-icon">🚚</span>
+                        <span>Dispatch</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="drivers">
+                    <a class="nav-link">
+                        <span class="nav-icon">👥</span>
+                        <span>Drivers</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="fleet">
+                    <a class="nav-link">
+                        <span class="nav-icon">🚗</span>
+                        <span>Fleet</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="customers">
+                    <a class="nav-link">
+                        <span class="nav-icon">👤</span>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="finance">
+                    <a class="nav-link">
+                        <span class="nav-icon">💰</span>
+                        <span>Finance</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="pricing">
+                    <a class="nav-link">
+                        <span class="nav-icon">💵</span>
+                        <span>Pricing</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="analytics">
+                    <a class="nav-link">
+                        <span class="nav-icon">📈</span>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <button class="logout-btn" id="logoutBtn">Logout</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-title">
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="header-actions">
+                    <input type="text" class="search-box" id="searchBox" placeholder="Search...">
+                    <div class="user-profile">
+                        <div class="user-avatar">A</div>
+                        <span>Admin</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Dashboard Section -->
+                <section class="section active" id="dashboard">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Orders</div>
+                            <div class="stat-value" id="totalOrders">0</div>
+                            <div class="stat-change positive">↑ 12% from last month</div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-label">Total Revenue</div>
+                            <div class="stat-value" id="totalRevenue">$0</div>
+                            <div class="stat-change positive">↑ 8% from last month</div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-label">Active Orders</div>
+                            <div class="stat-value" id="activeOrders">0</div>
+                            <div class="stat-change">Currently in delivery</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Total Litres</div>
+                            <div class="stat-value" id="totalLitres">0L</div>
+                            <div class="stat-change positive">↑ 5% from last month</div>
+                        </div>
+                    </div>
+
+                    <div class="two-column">
+                        <div class="chart-container">
+                            <div class="chart-title">Monthly Revenue</div>
+                            <div class="bar-chart" id="revenueChart"></div>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-title">Orders by Status</div>
+                            <div class="bar-chart" id="statusChart"></div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-header">
+                            <div class="table-title">Recent Orders</div>
+                        </div>
+                        <table id="recentOrdersTable">
+                            <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Customer</th>
+                                    <th>Fuel Type</th>
+                                    <th>Volume</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Driver</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Orders Section -->
+                <section class="section" id="orders">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <div class="table-title">All Orders</div>
+                            <div class="table-filters">
+                                <input type="text" class="filter-input" id="orderSearch" placeholder="Search orders...">
+                                <select class="filter-select" id="statusFilter">
+                                    <option value="">All Statuses</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <input type="date" class="filter-input" id="dateFilter">
+                            </div>
+                        </div>
+                        <table id="ordersTable">
+                            <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Customer</th>
+                                    <th>Fuel Type</th>
+                                    <th>Volume (L)</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Driver</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Dispatch Section -->
+                <section class="section" id="dispatch">
+                    <div class="dispatch-view">
+                        <div class="table-container">
+                            <div class="table-header">
+                                <div class="table-title">Active Orders</div>
+                            </div>
+                            <table id="dispatchOrdersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Customer</th>
+                                        <th>Location</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-container">
+                            <div class="table-header">
+                                <div class="table-title">Available Drivers</div>
+                            </div>
+                            <table id="availableDriversTable">
+                                <thead>
+                                    <tr>
+                                        <th>Driver</th>
+                                        <th>Vehicle</th>
+                                        <th>Status</th>
+                                        <th>Rating</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Drivers Section -->
+                <section class="section" id="drivers">
+                    <div class="table-header" style="margin-bottom:16px">
+                        <div class="table-title">All Drivers</div>
+                        <button class="btn btn-primary" onclick="openAddDriverModal()">+ Add Driver</button>
+                    </div>
+                    <div class="driver-grid" id="driverGrid"></div>
+                </section>
+
+                <!-- Fleet Section -->
+                <section class="section" id="fleet">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <div class="table-title">Fleet Vehicles</div>
+                            <div class="table-filters">
+                                <button class="btn btn-primary" style="margin-right:8px" onclick="openAddVehicleModal()">+ Add Vehicle</button>
+                                <input type="text" class="filter-input" id="vehicleSearch" placeholder="Search vehicles...">
+                                <select class="filter-select" id="statusFilterFleet">
+                                    <option value="">All Status</option>
+                                    <option value="available">Available</option>
+                                    <option value="in_use">In Use</option>
+                                    <option value="maintenance">Maintenance</option>
+                                </select>
+                            </div>
+                        </div>
+                        <table id="fleetTable">
+                            <thead>
+                                <tr>
+                                    <th>Plate</th>
+                                    <th>Owner/Company</th>
+                                    <th>Model</th>
+                                    <th>Fuel Type</th>
+                                    <th>Tank Capacity</th>
+                                    <th>Added</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Customers Section -->
+                <section class="section" id="customers">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <div class="table-title">Customers</div>
+                            <div class="table-filters">
+                                <input type="text" class="filter-input" id="customerSearch" placeholder="Search customers...">
+                            </div>
+                        </div>
+                        <table id="customersTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Company</th>
+                                    <th>Phone</th>
+                                    <th>Orders</th>
+                                    <th>Total Spent</th>
+                                    <th>Joined</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Finance Section -->
+                <section class="section" id="finance">
+                    <div class="stats-grid">
+                        <div class="stat-card success">
+                            <div class="stat-label">Total Revenue</div>
+                            <div class="stat-value" id="financeRevenue">$0</div>
+                            <div class="stat-change">All time</div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-label">Driver Payouts (15%)</div>
+                            <div class="stat-value" id="driverPayouts">$0</div>
+                            <div class="stat-change">Commission</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Net Revenue (85%)</div>
+                            <div class="stat-value" id="netRevenue">$0</div>
+                            <div class="stat-change">Bilcoguard keeps</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">Daily Revenue Last 7 Days</div>
+                        <div class="bar-chart" id="dailyRevenueChart"></div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-header">
+                            <div class="table-title">Fuel Type Revenue Breakdown</div>
+                        </div>
+                        <table id="fuelBreakdownTable">
+                            <thead>
+                                <tr>
+                                    <th>Fuel Type</th>
+                                    <th>Total Orders</th>
+                                    <th>Total Litres</th>
+                                    <th>Revenue</th>
+                                    <th>% of Total</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Pricing Section -->
+                <section class="section" id="pricing">
+                    <div class="price-grid" id="priceGrid"></div>
+                </section>
+
+                <!-- Analytics Section -->
+                <section class="section" id="analytics">
+                    <div class="chart-container">
+                        <div class="chart-title">Order Trends (Last 30 Days)</div>
+                        <div class="bar-chart" id="trendChart"></div>
+                    </div>
+
+                    <div class="two-column">
+                        <div class="chart-container">
+                            <div class="chart-title">Fuel Type Distribution</div>
+                            <div class="bar-chart" id="fuelTypeChart"></div>
+                        </div>
+
+                        <div class="table-container">
+                            <div class="table-header">
+                                <div class="table-title">Top Customers</div>
+                            </div>
+                            <table id="topCustomersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Customer</th>
+                                        <th>Orders</th>
+                                        <th>Total Spent</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">Recent Activity</div>
+                        <ul class="activity-list" id="activityList"></ul>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Driver Modal -->
+    <div class="modal" id="assignModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Assign Driver</span>
+                <button class="modal-close" id="assignModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Order #</label>
+                    <input type="text" id="assignOrderId" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Select Driver</label>
+                    <select id="driverSelect">
+                        <option value="">Choose a driver...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="assignCancel">Cancel</button>
+                <button class="btn btn-primary" id="assignConfirm">Assign</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Price Modal -->
+    <div class="modal" id="priceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Edit Fuel Price</span>
+                <button class="modal-close" id="priceModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Fuel Type</label>
+                    <input type="text" id="editFuelType" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Price per Litre (K)</label>
+                    <input type="number" id="editPrice" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="priceCancel">Cancel</button>
+                <button class="btn btn-primary" id="priceSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Driver Modal -->
+    <div class="modal" id="addDriverModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Add New Driver</span>
+                <button class="modal-close" onclick="document.getElementById('addDriverModal').classList.remove('active')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="newDriverName" placeholder="e.g. Joseph Mwanza">
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="newDriverEmail" placeholder="e.g. driver@bilcoguard.com">
+                </div>
+                <div class="form-group">
+                    <label>Password *</label>
+                    <input type="password" id="newDriverPassword" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" id="newDriverPhone" placeholder="e.g. +260977123456">
+                </div>
+                <div class="form-group">
+                    <label>Vehicle Plate</label>
+                    <input type="text" id="newDriverPlate" placeholder="e.g. ABT 4421">
+                </div>
+                <div class="form-group">
+                    <label>Licence Number</label>
+                    <input type="text" id="newDriverLicence" placeholder="e.g. DL-2024-1234">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('addDriverModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddDriver()">Add Driver</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Vehicle Modal -->
+    <div class="modal" id="addVehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Add New Vehicle</span>
+                <button class="modal-close" onclick="document.getElementById('addVehicleModal').classList.remove('active')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Vehicle Name / Model *</label>
+                    <input type="text" id="newVehicleName" placeholder="e.g. Toyota Hilux">
+                </div>
+                <div class="form-group">
+                    <label>Plate Number *</label>
+                    <input type="text" id="newVehiclePlate" placeholder="e.g. BAH 1234">
+                </div>
+                <div class="form-group">
+                    <label>Fuel Type</label>
+                    <select id="newVehicleFuel" class="filter-select" style="width:100%;padding:12px;border:2px solid var(--light-grey);border-radius:6px">
+                        <option value="diesel">Diesel</option>
+                        <option value="petrol">Petrol</option>
+                        <option value="premium">Premium</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tank Capacity (Litres)</label>
+                    <input type="number" id="newVehicleTank" placeholder="e.g. 80" value="80">
+                </div>
+                <div class="form-group">
+                    <label>Owner (Customer)</label>
+                    <select id="newVehicleOwner" class="filter-select" style="width:100%;padding:12px;border:2px solid var(--light-grey);border-radius:6px">
+                        <option value="">Loading customers...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('addVehicleModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddVehicle()">Add Vehicle</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        const app = {
+            token: localStorage.getItem('adminToken'),
+            currentUser: localStorage.getItem('adminUser'),
+            currentSection: 'dashboard',
+            apiBase: '/api/admin',
+            dashboardData: null,
+            ordersData: null,
+            driversData: null,
+            vehiclesData: null,
+            customersData: null,
+            dispatchData: null,
+            financeData: null
+        };
+
+        // API Helper
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${app.token}`
+                    }
+                };
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                const response = await fetch(`${app.apiBase}${endpoint}`, options);
+                if (!response.ok) {
+                    console.error(`API Error: ${response.status} ${response.statusText}`);
+                    return null;
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`API call failed: ${error}`);
+                return null;
+            }
+        }
+
+        // Initialize
+        function init() {
+            if (app.token && app.currentUser) {
+                showAdmin();
+            } else {
+                showLogin();
+            }
+            setupEventListeners();
+        }
+
+        // Login/Logout
+        function showLogin() {
+            document.getElementById('loginContainer').classList.add('active');
+            document.getElementById('adminContainer').style.display = 'none';
+        }
+
+        function showAdmin() {
+            document.getElementById('loginContainer').classList.remove('active');
+            document.getElementById('adminContainer').style.display = 'flex';
+            loadDashboard();
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${app.apiBase}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!response.ok) {
+                    alert('Invalid credentials');
+                    return;
+                }
+
+                const data = await response.json();
+                app.token = data.token;
+                app.currentUser = data.admin?.name || data.user?.name || 'Admin';
+                localStorage.setItem('adminToken', app.token);
+                localStorage.setItem('adminUser', app.currentUser);
+                showAdmin();
+                document.getElementById('loginForm').reset();
+            } catch (error) {
+                console.error('Login failed:', error);
+                alert('Login failed. Please try again.');
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            app.token = null;
+            app.currentUser = null;
+            showLogin();
+        });
+
+        // Navigation
+        function setupEventListeners() {
+            // Sidebar Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const section = item.dataset.section;
+                    switchSection(section);
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('navMenu').classList.remove('open');
+                        document.getElementById('sidebar').classList.add('mobile-hidden');
+                    }
+                });
+            });
+
+            // Mobile Sidebar Toggle
+            document.getElementById('sidebarToggle').addEventListener('click', () => {
+                const menu = document.getElementById('navMenu');
+                const sidebar = document.getElementById('sidebar');
+                menu.classList.toggle('open');
+                sidebar.classList.toggle('mobile-hidden');
+            });
+
+            // Modal Close Buttons
+            document.getElementById('assignModalClose').addEventListener('click', () => {
+                document.getElementById('assignModal').classList.remove('active');
+            });
+            document.getElementById('priceModalClose').addEventListener('click', () => {
+                document.getElementById('priceModal').classList.remove('active');
+            });
+            document.getElementById('assignCancel').addEventListener('click', () => {
+                document.getElementById('assignModal').classList.remove('active');
+            });
+            document.getElementById('priceCancel').addEventListener('click', () => {
+                document.getElementById('priceModal').classList.remove('active');
+            });
+
+            // Filters
+            document.getElementById('statusFilter')?.addEventListener('change', filterOrders);
+            document.getElementById('orderSearch')?.addEventListener('input', filterOrders);
+            document.getElementById('dateFilter')?.addEventListener('change', filterOrders);
+            document.getElementById('vehicleSearch')?.addEventListener('input', filterFleet);
+            document.getElementById('statusFilterFleet')?.addEventListener('change', filterFleet);
+            document.getElementById('customerSearch')?.addEventListener('input', filterCustomers);
+        }
+
+        function switchSection(section) {
+            app.currentSection = section;
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(section).classList.add('active');
+            document.getElementById('pageTitle').textContent = capitalizeSection(section);
+
+            // Load section data
+            switch(section) {
+                case 'dashboard': loadDashboard(); break;
+                case 'orders': loadOrders(); break;
+                case 'dispatch': loadDispatch(); break;
+                case 'drivers': loadDrivers(); break;
+                case 'fleet': loadFleet(); break;
+                case 'customers': loadCustomers(); break;
+                case 'finance': loadFinance(); break;
+                case 'pricing': loadPricing(); break;
+                case 'analytics': loadAnalytics(); break;
+            }
+        }
+
+        function capitalizeSection(section) {
+            const names = {
+                'dashboard': 'Dashboard',
+                'orders': 'Orders',
+                'dispatch': 'Dispatch',
+                'drivers': 'Drivers',
+                'fleet': 'Fleet',
+                'customers': 'Customers',
+                'finance': 'Finance',
+                'pricing': 'Pricing',
+                'analytics': 'Analytics'
+            };
+            return names[section] || 'Dashboard';
+        }
+
+        // Dashboard
+        async function loadDashboard() {
+            const data = await apiCall('/dashboard');
+            if (!data) {
+                document.getElementById('totalOrders').textContent = 'No data';
+                document.getElementById('totalRevenue').textContent = 'K0';
+                document.getElementById('activeOrders').textContent = 'No data';
+                document.getElementById('totalLitres').textContent = 'No data';
+                return;
+            }
+
+            app.dashboardData = data;
+            const overview = data.overview || {};
+            const todayData = data.today || {};
+
+            document.getElementById('totalOrders').textContent = overview.total_orders || 0;
+            document.getElementById('totalRevenue').textContent = 'K' + (overview.total_revenue || 0).toLocaleString();
+            document.getElementById('activeOrders').textContent = overview.active_orders || 0;
+            document.getElementById('totalLitres').textContent = (overview.total_litres || 0) + 'L';
+
+            // Revenue Chart - using monthly_revenue from API
+            const monthlyData = data.monthly_revenue || [];
+            const monthLabels = monthlyData.map(m => m.month) || ['Jan', 'Feb', 'Mar'];
+            const monthRevenue = monthlyData.map(m => m.revenue) || [0, 0, overview.total_revenue || 0];
+            renderBarChart('revenueChart', monthLabels, monthRevenue);
+
+            // Status Chart
+            const statuses = ['Pending', 'In Progress', 'Completed'];
+            const statusCounts = [
+                data.recent_orders ? data.recent_orders.filter(o => o.status === 'pending').length : 0,
+                data.recent_orders ? data.recent_orders.filter(o => o.status === 'in_progress').length : 0,
+                data.recent_orders ? data.recent_orders.filter(o => o.status === 'completed').length : 0
+            ];
+            renderBarChart('statusChart', statuses, statusCounts);
+
+            // Recent Orders Table
+            const tbody = document.querySelector('#recentOrdersTable tbody');
+            const recentOrders = data.recent_orders || [];
+            tbody.innerHTML = recentOrders.slice(0, 5).map(o => `
+                <tr>
+                    <td>${o.id || '-'}</td>
+                    <td>${o.customer_name || '-'}</td>
+                    <td>${o.fuel_type || '-'}</td>
+                    <td>${o.volume || 0}L</td>
+                    <td>K${o.total || 0}</td>
+                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status || '-'}</span></td>
+                    <td>${o.driver_name || '-'}</td>
+                    <td>${o.delivery_date || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Orders
+        async function loadOrders() {
+            const data = await apiCall('/orders');
+            if (!data) {
+                document.querySelector('#ordersTable tbody').innerHTML = '<tr><td colspan="9">No data</td></tr>';
+                return;
+            }
+
+            app.ordersData = Array.isArray(data) ? data : (data.orders || []);
+            renderOrdersTable(app.ordersData);
+        }
+
+        function renderOrdersTable(orders) {
+            const tbody = document.querySelector('#ordersTable tbody');
+            tbody.innerHTML = orders.map(o => `
+                <tr>
+                    <td>${o.id || '-'}</td>
+                    <td>${o.customer_name || o.customer || '-'}</td>
+                    <td>${o.fuel_type || o.fuel || '-'}</td>
+                    <td>${o.volume || 0}</td>
+                    <td>K${o.total || 0}</td>
+                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status || '-'}</span></td>
+                    <td>${o.driver_name || o.driver || '-'}</td>
+                    <td>${o.delivery_date || o.date || '-'}</td>
+                    <td><button class="btn btn-sm btn-primary">View</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function filterOrders() {
+            const search = (document.getElementById('orderSearch')?.value || '').toLowerCase();
+            const status = document.getElementById('statusFilter')?.value || '';
+            const date = document.getElementById('dateFilter')?.value || '';
+
+            let filtered = (app.ordersData || []).filter(o => {
+                const matchSearch = !search ||
+                    (o.id || '').toLowerCase().includes(search) ||
+                    (o.customer_name || o.customer || '').toLowerCase().includes(search) ||
+                    (o.order_number || '').toLowerCase().includes(search);
+                const matchStatus = !status || o.status === status;
+                const matchDate = !date || (o.delivery_date || o.date) === date;
+                return matchSearch && matchStatus && matchDate;
+            });
+
+            renderOrdersTable(filtered);
+        }
+
+        // Dispatch
+        async function loadDispatch() {
+            const data = await apiCall('/dispatch');
+            if (!data) {
+                document.querySelector('#dispatchOrdersTable tbody').innerHTML = '<tr><td colspan="5">No data</td></tr>';
+                document.querySelector('#availableDriversTable tbody').innerHTML = '<tr><td colspan="4">No data</td></tr>';
+                return;
+            }
+
+            app.dispatchData = data;
+            const activeOrders = data.active_orders || [];
+            const availableDrivers = data.available_drivers || [];
+
+            const tbody = document.querySelector('#dispatchOrdersTable tbody');
+            tbody.innerHTML = activeOrders.map(o => `
+                <tr>
+                    <td>${o.id || '-'}</td>
+                    <td>${o.customer_name || '-'}</td>
+                    <td>${o.location || o.delivery_location || '-'}</td>
+                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status || '-'}</span></td>
+                    <td><button class="btn btn-sm btn-primary" onclick="openAssignModal('${o.id}')">Assign</button></td>
+                </tr>
+            `).join('');
+
+            const driversTbody = document.querySelector('#availableDriversTable tbody');
+            driversTbody.innerHTML = availableDrivers.map(d => `
+                <tr>
+                    <td>${d.name || '-'}</td>
+                    <td>${d.plate || '-'}</td>
+                    <td><span class="badge badge-success">Available</span></td>
+                    <td>⭐ ${d.rating || 'N/A'}</td>
+                </tr>
+            `).join('');
+
+            setupDriverSelect(availableDrivers);
+        }
+
+        function openAssignModal(orderId) {
+            document.getElementById('assignOrderId').value = orderId;
+            document.getElementById('assignModal').classList.add('active');
+        }
+
+        function setupDriverSelect(drivers) {
+            const select = document.getElementById('driverSelect');
+            select.innerHTML = '<option value="">Choose a driver...</option>' +
+                (drivers || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+        }
+
+        document.getElementById('assignConfirm')?.addEventListener('click', async () => {
+            const orderId = document.getElementById('assignOrderId').value;
+            const driverId = document.getElementById('driverSelect').value;
+
+            if (!driverId) {
+                alert('Please select a driver');
+                return;
+            }
+
+            const result = await apiCall('/dispatch/assign', 'POST', {
+                order_id: orderId,
+                driver_id: driverId
+            });
+
+            if (result) {
+                alert('Driver assigned successfully!');
+                document.getElementById('assignModal').classList.remove('active');
+                loadDispatch();
+            } else {
+                alert('Failed to assign driver');
+            }
+        });
+
+        // Drivers
+        async function loadDrivers() {
+            const data = await apiCall('/drivers');
+            if (!data) {
+                document.getElementById('driverGrid').innerHTML = '<p>No data</p>';
+                return;
+            }
+
+            app.driversData = Array.isArray(data) ? data : (data.drivers || []);
+            const grid = document.getElementById('driverGrid');
+            grid.innerHTML = app.driversData.map(d => `
+                <div class="driver-card">
+                    <div class="driver-info">
+                        <div class="driver-avatar">${(d.name || '-').charAt(0)}</div>
+                        <div class="driver-details">
+                            <h3>${d.name || '-'}</h3>
+                            <div class="driver-rating">⭐ ${d.rating || 'N/A'} (${d.total_deliveries || d.completed_orders || 0} deliveries)</div>
+                        </div>
+                    </div>
+                    <div class="driver-stats">
+                        <div class="driver-stat">
+                            <div class="driver-stat-label">Plate</div>
+                            <div class="driver-stat-value">${d.plate || '-'}</div>
+                        </div>
+                        <div class="driver-stat">
+                            <div class="driver-stat-label">Earnings</div>
+                            <div class="driver-stat-value">K${d.total_earnings || 0}</div>
+                        </div>
+                    </div>
+                    <div class="driver-actions">
+                        <button class="status-toggle ${d.status === 'active' ? 'active' : ''}" onclick="toggleDriverStatus('${d.id}', '${d.status}')">
+                            ${d.status === 'active' ? 'Active' : 'Inactive'}
+                        </button>
+                        <button class="btn btn-sm btn-secondary">Edit</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function toggleDriverStatus(driverId, currentStatus) {
+            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+            const result = await apiCall(`/drivers/${driverId}`, 'PUT', { status: newStatus });
+            if (result) {
+                loadDrivers();
+            } else {
+                alert('Failed to update driver status');
+            }
+        }
+
+        // Fleet
+        async function loadFleet() {
+            const data = await apiCall('/vehicles');
+            if (!data) {
+                document.querySelector('#fleetTable tbody').innerHTML = '<tr><td colspan="6">No data</td></tr>';
+                return;
+            }
+
+            app.vehiclesData = Array.isArray(data) ? data : (data.vehicles || []);
+            renderFleetTable(app.vehiclesData);
+        }
+
+        function renderFleetTable(vehicles) {
+            const tbody = document.querySelector('#fleetTable tbody');
+            tbody.innerHTML = vehicles.map(v => `
+                <tr>
+                    <td>${v.plate || '-'}</td>
+                    <td>${v.owner_name || '-'} ${v.owner_company ? '(' + v.owner_company + ')' : ''}</td>
+                    <td>${v.icon || ''} ${v.name || '-'}</td>
+                    <td>${(v.fuel_type || 'diesel').charAt(0).toUpperCase() + (v.fuel_type || 'diesel').slice(1)}</td>
+                    <td>${v.tank_capacity || 0}L</td>
+                    <td>${v.created_at ? v.created_at.split('T')[0] : '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function filterFleet() {
+            const search = (document.getElementById('vehicleSearch')?.value || '').toLowerCase();
+            const status = document.getElementById('statusFilterFleet')?.value || '';
+
+            let filtered = (app.vehiclesData || []).filter(v => {
+                const matchSearch = !search ||
+                    (v.plate || '').toLowerCase().includes(search) ||
+                    (v.owner_name || v.owner || '').toLowerCase().includes(search);
+                const matchStatus = !status || v.status === status;
+                return matchSearch && matchStatus;
+            });
+
+            renderFleetTable(filtered);
+        }
+
+        // Customers
+        async function loadCustomers() {
+            const data = await apiCall('/customers');
+            if (!data) {
+                document.querySelector('#customersTable tbody').innerHTML = '<tr><td colspan="7">No data</td></tr>';
+                return;
+            }
+
+            app.customersData = Array.isArray(data) ? data : (data.customers || []);
+            renderCustomersTable(app.customersData);
+        }
+
+        function renderCustomersTable(customers) {
+            const tbody = document.querySelector('#customersTable tbody');
+            tbody.innerHTML = customers.map(c => `
+                <tr>
+                    <td>${c.name || '-'}</td>
+                    <td>${c.email || '-'}</td>
+                    <td>${c.company || '-'}</td>
+                    <td>${c.phone || '-'}</td>
+                    <td>${c.order_count || 0}</td>
+                    <td>K${c.total_spent || 0}</td>
+                    <td>${c.created_at || c.joined || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function filterCustomers() {
+            const search = (document.getElementById('customerSearch')?.value || '').toLowerCase();
+            let filtered = (app.customersData || []).filter(c =>
+                (c.name || '').toLowerCase().includes(search) ||
+                (c.email || '').toLowerCase().includes(search) ||
+                (c.company || '').toLowerCase().includes(search)
+            );
+
+            renderCustomersTable(filtered);
+        }
+
+        // Finance
+        async function loadFinance() {
+            const data = await apiCall('/finance');
+            if (!data) {
+                document.getElementById('financeRevenue').textContent = 'K0';
+                document.getElementById('driverPayouts').textContent = 'K0';
+                document.getElementById('netRevenue').textContent = 'K0';
+                document.querySelector('#fuelBreakdownTable tbody').innerHTML = '<tr><td colspan="5">No data</td></tr>';
+                return;
+            }
+
+            app.financeData = data;
+            const totalRevenue = data.total_revenue || 0;
+            const driverPayouts = data.driver_payouts || 0;
+            const netRevenue = data.net_revenue || 0;
+
+            document.getElementById('financeRevenue').textContent = 'K' + totalRevenue.toLocaleString();
+            document.getElementById('driverPayouts').textContent = 'K' + driverPayouts.toLocaleString();
+            document.getElementById('netRevenue').textContent = 'K' + netRevenue.toLocaleString();
+
+            // Daily Revenue Chart
+            const dailyData = data.daily_revenue || [];
+            const days = dailyData.map(d => {
+                const date = new Date(d.date);
+                return date.toLocaleDateString('en-US', { weekday: 'short' });
+            }) || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const dailyRev = dailyData.map(d => d.revenue) || [0, 0, 0, 0, 0, 0, 0];
+            renderBarChart('dailyRevenueChart', days, dailyRev);
+
+            // Fuel Breakdown
+            const fuelBreakdown = data.fuel_breakdown || [];
+            const tbody = document.querySelector('#fuelBreakdownTable tbody');
+            tbody.innerHTML = fuelBreakdown.map(fuel => {
+                const revenue = fuel.revenue || 0;
+                const percent = totalRevenue > 0 ? ((revenue / totalRevenue) * 100).toFixed(1) : 0;
+                return `
+                    <tr>
+                        <td>${fuel.fuel_type || '-'}</td>
+                        <td>${fuel.orders || 0}</td>
+                        <td>${fuel.litres || 0}L</td>
+                        <td>K${revenue}</td>
+                        <td>${percent}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Pricing
+        async function loadPricing() {
+            const data = await apiCall('/dashboard');
+            if (!data || !data.fuel_prices) {
+                document.getElementById('priceGrid').innerHTML = '<p>No data</p>';
+                return;
+            }
+
+            const prices = data.fuel_prices || [];
+            const grid = document.getElementById('priceGrid');
+            grid.innerHTML = prices.map(p => `
+                <div class="price-card">
+                    <div class="price-header">
+                        <div class="price-name">${p.fuel_type || p.name || '-'}</div>
+                    </div>
+                    <div class="price-value">K${(p.price_per_litre || p.price || 0).toFixed(2)}<span style="font-size: 14px; color: var(--grey);">/L</span></div>
+                    <div class="price-actions">
+                        <button class="btn btn-primary btn-sm" onclick="openPriceModal('${p.id}', '${p.fuel_type || p.name}', ${p.price_per_litre || p.price})">Edit</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        let currentPriceId = null;
+
+        function openPriceModal(id, name, price) {
+            currentPriceId = id;
+            document.getElementById('editFuelType').value = name;
+            document.getElementById('editPrice').value = price;
+            document.getElementById('priceModal').classList.add('active');
+        }
+
+        document.getElementById('priceSave')?.addEventListener('click', async () => {
+            if (!currentPriceId) {
+                alert('Invalid price ID');
+                return;
+            }
+
+            const newPrice = parseFloat(document.getElementById('editPrice').value);
+            if (isNaN(newPrice)) {
+                alert('Please enter a valid price');
+                return;
+            }
+
+            const result = await apiCall(`/prices/${currentPriceId}`, 'PUT', {
+                price_per_litre: newPrice
+            });
+
+            if (result) {
+                alert('Price updated successfully!');
+                document.getElementById('priceModal').classList.remove('active');
+                loadPricing();
+            } else {
+                alert('Failed to update price');
+            }
+        });
+
+        // Analytics
+        async function loadAnalytics() {
+            const dashData = app.dashboardData || await apiCall('/dashboard');
+            const ordersData = app.ordersData || await apiCall('/orders');
+
+            if (!dashData) {
+                document.getElementById('activityList').innerHTML = '<p>No data</p>';
+                return;
+            }
+
+            // Trend Chart (using monthly_revenue if available)
+            const monthlyData = dashData.monthly_revenue || [];
+            const periods = monthlyData.map(m => m.month) || ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
+            const trends = monthlyData.map(m => m.orders || 0) || [3, 4, 6, 5, 7, 4];
+            renderBarChart('trendChart', periods, trends);
+
+            // Fuel Type Distribution
+            const recentOrders = dashData.recent_orders || [];
+            const fuelTypes = ['Diesel', 'Petrol', 'LPG'];
+            const fuelCounts = [
+                recentOrders.filter(o => (o.fuel_type || '').includes('Diesel')).length,
+                recentOrders.filter(o => (o.fuel_type || '').includes('Petrol')).length,
+                recentOrders.filter(o => (o.fuel_type || '').includes('LPG')).length
+            ];
+            renderBarChart('fuelTypeChart', fuelTypes, fuelCounts);
+
+            // Top Customers
+            const customers = app.customersData || await apiCall('/customers');
+            const customersArray = Array.isArray(customers) ? customers : (customers?.customers || []);
+            const topCustomers = customersArray.sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0));
+            const tbody = document.querySelector('#topCustomersTable tbody');
+            tbody.innerHTML = topCustomers.slice(0, 5).map((c, i) => `
+                <tr>
+                    <td>#${i + 1}</td>
+                    <td>${c.name || '-'}</td>
+                    <td>${c.order_count || 0}</td>
+                    <td>K${c.total_spent || 0}</td>
+                </tr>
+            `).join('');
+
+            // Activity List - using recent_orders from dashboard
+            const activityList = document.getElementById('activityList');
+            const activities = (dashData.recent_orders || []).slice(0, 4).map(order => {
+                let icon = '📦';
+                let title = 'Order Update';
+                let desc = `${order.order_number || order.id} from ${order.customer_name}`;
+
+                if (order.status === 'completed') {
+                    icon = '✅';
+                    title = 'Order Completed';
+                } else if (order.status === 'in_progress') {
+                    icon = '🚚';
+                    title = 'Order In Progress';
+                }
+
+                return { icon, title, desc };
+            });
+
+            activityList.innerHTML = activities.map(a => `
+                <li class="activity-item">
+                    <div class="activity-icon">${a.icon}</div>
+                    <div class="activity-content">
+                        <h4>${a.title}</h4>
+                        <p>${a.desc}</p>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        // Chart Rendering
+        function renderBarChart(elementId, labels, values) {
+            const container = document.getElementById(elementId);
+            if (!container) return;
+
+            const maxValue = Math.max(...values);
+            const html = values.map((v, i) => `
+                <div class="bar-item">
+                    <div class="bar" style="height: ${(v / maxValue) * 100}%;"></div>
+                    <div class="bar-value">${v}</div>
+                    <div class="bar-label">${labels[i]}</div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        // Utility Functions
+        function getStatusClass(status) {
+            const map = {
+                'completed': 'success',
+                'pending': 'warning',
+                'in_progress': 'info',
+                'cancelled': 'danger',
+                'confirmed': 'info'
+            };
+            return map[status] || 'secondary';
+        }
+
+        // ── Add Driver ──
+        function openAddDriverModal() {
+            document.getElementById('newDriverName').value = '';
+            document.getElementById('newDriverEmail').value = '';
+            document.getElementById('newDriverPassword').value = '';
+            document.getElementById('newDriverPhone').value = '';
+            document.getElementById('newDriverPlate').value = '';
+            document.getElementById('newDriverLicence').value = '';
+            document.getElementById('addDriverModal').classList.add('active');
+        }
+
+        async function submitAddDriver() {
+            const name = document.getElementById('newDriverName').value.trim();
+            const email = document.getElementById('newDriverEmail').value.trim();
+            const password = document.getElementById('newDriverPassword').value;
+            const phone = document.getElementById('newDriverPhone').value.trim();
+            const plate = document.getElementById('newDriverPlate').value.trim();
+            const licence_number = document.getElementById('newDriverLicence').value.trim();
+
+            if (!name || !email || !password) {
+                alert('Name, email, and password are required');
+                return;
+            }
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters');
+                return;
+            }
+
+            const result = await apiCall('/drivers', 'POST', { email, password, name, phone, plate, licence_number });
+            if (result && !result.error) {
+                alert('Driver added successfully!');
+                document.getElementById('addDriverModal').classList.remove('active');
+                loadDrivers();
+            } else {
+                alert('Failed to add driver: ' + (result?.error || 'Unknown error'));
+            }
+        }
+
+        // ── Add Vehicle ──
+        function openAddVehicleModal() {
+            document.getElementById('newVehicleName').value = '';
+            document.getElementById('newVehiclePlate').value = '';
+            document.getElementById('newVehicleFuel').value = 'diesel';
+            document.getElementById('newVehicleTank').value = '80';
+            // Load customers into dropdown
+            const select = document.getElementById('newVehicleOwner');
+            const customers = app.customersData || [];
+            select.innerHTML = customers.map(c => `<option value="${c.id}">${c.name} (${c.company || 'N/A'})</option>`).join('');
+            if (customers.length === 0) {
+                select.innerHTML = '<option value="">No customers loaded</option>';
+                // Try loading customers
+                apiCall('/customers').then(data => {
+                    const custs = Array.isArray(data) ? data : (data?.customers || []);
+                    app.customersData = custs;
+                    select.innerHTML = custs.map(c => `<option value="${c.id}">${c.name} (${c.company || 'N/A'})</option>`).join('');
+                });
+            }
+            document.getElementById('addVehicleModal').classList.add('active');
+        }
+
+        async function submitAddVehicle() {
+            const name = document.getElementById('newVehicleName').value.trim();
+            const plate = document.getElementById('newVehiclePlate').value.trim();
+            const fuel_type = document.getElementById('newVehicleFuel').value;
+            const tank_capacity = parseInt(document.getElementById('newVehicleTank').value) || 80;
+            const user_id = document.getElementById('newVehicleOwner').value;
+
+            if (!name || !plate) {
+                alert('Vehicle name and plate number are required');
+                return;
+            }
+
+            const result = await apiCall('/vehicles', 'POST', { name, plate, fuel_type, tank_capacity, user_id: user_id || undefined });
+            if (result && !result.error) {
+                alert('Vehicle added successfully!');
+                document.getElementById('addVehicleModal').classList.remove('active');
+                loadFleet();
+            } else {
+                alert('Failed to add vehicle: ' + (result?.error || 'Unknown error'));
+            }
+        }
+
+        // Initialize on Load
+        window.addEventListener('load', init);
+
+        // Handle window resize for responsive
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                document.getElementById('navMenu').classList.remove('open');
+                document.getElementById('sidebar').classList.remove('mobile-hidden');
+            }
+        });
+    </script>
+</body>
+</html>
