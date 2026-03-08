@@ -1393,35 +1393,39 @@
             currentUser: localStorage.getItem('adminUser'),
             currentSection: 'dashboard',
             apiBase: '/api/admin',
-            mockData: {
-                orders: [
-                    { id: 'ORD-001', customer: 'Acme Corp', fuel: 'Diesel', volume: 500, total: 1500, status: 'completed', driver: 'John Smith', date: '2026-03-07', location: '123 Main St' },
-                    { id: 'ORD-002', customer: 'Tech Inc', fuel: 'Petrol', volume: 300, total: 900, status: 'in_progress', driver: 'Jane Doe', date: '2026-03-08', location: '456 Oak Ave' },
-                    { id: 'ORD-003', customer: 'Supply Co', fuel: 'Diesel', volume: 750, total: 2250, status: 'pending', driver: null, date: '2026-03-08', location: '789 Pine Rd' },
-                    { id: 'ORD-004', customer: 'Energy Ltd', fuel: 'LPG', volume: 200, total: 600, status: 'completed', driver: 'Mike Johnson', date: '2026-03-06', location: '321 Elm St' },
-                ],
-                drivers: [
-                    { id: 'DRV-001', name: 'John Smith', plate: 'ABC-123', rating: 4.8, deliveries: 156, status: 'active', earnings: 2340 },
-                    { id: 'DRV-002', name: 'Jane Doe', plate: 'XYZ-789', rating: 4.9, deliveries: 203, status: 'active', earnings: 3050 },
-                    { id: 'DRV-003', name: 'Mike Johnson', plate: 'DEF-456', rating: 4.6, deliveries: 98, status: 'inactive', earnings: 1470 },
-                ],
-                vehicles: [
-                    { id: 'VEH-001', plate: 'ABC-123', owner: 'John Smith', model: 'Ford Transit', capacity: 5000, status: 'in_use', service: '2026-02-15' },
-                    { id: 'VEH-002', plate: 'XYZ-789', owner: 'Jane Doe', model: 'Mercedes Sprinter', capacity: 6000, status: 'in_use', service: '2026-02-20' },
-                    { id: 'VEH-003', plate: 'DEF-456', owner: 'Mike Johnson', model: 'Volkswagen Crafter', capacity: 4500, status: 'maintenance', service: '2026-03-01' },
-                ],
-                customers: [
-                    { name: 'Acme Corp', email: 'contact@acme.com', company: 'Acme Corp', phone: '+1-555-0001', orders: 15, spent: 4500, joined: '2025-06-01' },
-                    { name: 'Tech Inc', email: 'info@techinc.com', company: 'Tech Inc', phone: '+1-555-0002', orders: 23, spent: 6900, joined: '2025-04-15' },
-                    { name: 'Supply Co', email: 'admin@supplyco.com', company: 'Supply Co', phone: '+1-555-0003', orders: 8, spent: 2400, joined: '2025-11-10' },
-                ],
-                prices: [
-                    { id: 'FUEL-DIESEL', name: 'Diesel', price: 3.00 },
-                    { id: 'FUEL-PETROL', name: 'Petrol', price: 3.25 },
-                    { id: 'FUEL-LPG', name: 'LPG', price: 3.00 },
-                ]
-            }
+            dashboardData: null,
+            ordersData: null,
+            driversData: null,
+            vehiclesData: null,
+            customersData: null,
+            dispatchData: null,
+            financeData: null
         };
+
+        // API Helper
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${app.token}`
+                    }
+                };
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                const response = await fetch(`${app.apiBase}${endpoint}`, options);
+                if (!response.ok) {
+                    console.error(`API Error: ${response.status} ${response.statusText}`);
+                    return null;
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`API call failed: ${error}`);
+                return null;
+            }
+        }
 
         // Initialize
         function init() {
@@ -1450,15 +1454,30 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
 
-            if (email === 'admin@bilcoguard.com' && password === 'admin2026') {
-                app.token = 'mock-token-' + Date.now();
-                app.currentUser = 'Admin';
+            try {
+                const response = await fetch(`${app.apiBase}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!response.ok) {
+                    alert('Invalid credentials');
+                    return;
+                }
+
+                const data = await response.json();
+                app.token = data.token;
+                app.currentUser = data.user?.name || 'Admin';
                 localStorage.setItem('adminToken', app.token);
                 localStorage.setItem('adminUser', app.currentUser);
                 showAdmin();
                 document.getElementById('loginForm').reset();
-            } else {
-                alert('Invalid credentials');
+            } catch (error) {
+                console.error('Login failed:', error);
+                alert('Login failed. Please try again.');
             }
         });
 
@@ -1553,61 +1572,81 @@
         }
 
         // Dashboard
-        function loadDashboard() {
-            const orders = app.mockData.orders;
-            const totalOrders = orders.length;
-            const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-            const activeOrders = orders.filter(o => o.status === 'in_progress').length;
-            const totalLitres = orders.reduce((sum, o) => sum + o.volume, 0);
+        async function loadDashboard() {
+            const data = await apiCall('/dashboard');
+            if (!data) {
+                document.getElementById('totalOrders').textContent = 'No data';
+                document.getElementById('totalRevenue').textContent = 'K0';
+                document.getElementById('activeOrders').textContent = 'No data';
+                document.getElementById('totalLitres').textContent = 'No data';
+                return;
+            }
 
-            document.getElementById('totalOrders').textContent = totalOrders;
-            document.getElementById('totalRevenue').textContent = '$' + totalRevenue.toLocaleString();
-            document.getElementById('activeOrders').textContent = activeOrders;
-            document.getElementById('totalLitres').textContent = totalLitres + 'L';
+            app.dashboardData = data;
+            const overview = data.overview || {};
+            const todayData = data.today || {};
 
-            // Revenue Chart
-            const monthData = ['Jan', 'Feb', 'Mar'];
-            const monthRevenue = [4500, 5200, totalRevenue];
-            renderBarChart('revenueChart', monthData, monthRevenue);
+            document.getElementById('totalOrders').textContent = overview.total_orders || 0;
+            document.getElementById('totalRevenue').textContent = 'K' + (overview.total_revenue || 0).toLocaleString();
+            document.getElementById('activeOrders').textContent = overview.active_orders || 0;
+            document.getElementById('totalLitres').textContent = (overview.total_litres || 0) + 'L';
+
+            // Revenue Chart - using monthly_revenue from API
+            const monthlyData = data.monthly_revenue || [];
+            const monthLabels = monthlyData.map(m => m.month) || ['Jan', 'Feb', 'Mar'];
+            const monthRevenue = monthlyData.map(m => m.revenue) || [0, 0, overview.total_revenue || 0];
+            renderBarChart('revenueChart', monthLabels, monthRevenue);
 
             // Status Chart
             const statuses = ['Pending', 'In Progress', 'Completed'];
             const statusCounts = [
-                orders.filter(o => o.status === 'pending').length,
-                orders.filter(o => o.status === 'in_progress').length,
-                orders.filter(o => o.status === 'completed').length
+                data.recent_orders ? data.recent_orders.filter(o => o.status === 'pending').length : 0,
+                data.recent_orders ? data.recent_orders.filter(o => o.status === 'in_progress').length : 0,
+                data.recent_orders ? data.recent_orders.filter(o => o.status === 'completed').length : 0
             ];
             renderBarChart('statusChart', statuses, statusCounts);
 
             // Recent Orders Table
             const tbody = document.querySelector('#recentOrdersTable tbody');
-            tbody.innerHTML = orders.slice(0, 5).map(o => `
+            const recentOrders = data.recent_orders || [];
+            tbody.innerHTML = recentOrders.slice(0, 5).map(o => `
                 <tr>
-                    <td>${o.id}</td>
-                    <td>${o.customer}</td>
-                    <td>${o.fuel}</td>
-                    <td>${o.volume}L</td>
-                    <td>$${o.total}</td>
-                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status}</span></td>
-                    <td>${o.driver || '-'}</td>
-                    <td>${o.date}</td>
+                    <td>${o.id || '-'}</td>
+                    <td>${o.customer_name || '-'}</td>
+                    <td>${o.fuel_type || '-'}</td>
+                    <td>${o.volume || 0}L</td>
+                    <td>K${o.total || 0}</td>
+                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status || '-'}</span></td>
+                    <td>${o.driver_name || '-'}</td>
+                    <td>${o.delivery_date || '-'}</td>
                 </tr>
             `).join('');
         }
 
         // Orders
-        function loadOrders() {
+        async function loadOrders() {
+            const data = await apiCall('/orders');
+            if (!data) {
+                document.querySelector('#ordersTable tbody').innerHTML = '<tr><td colspan="9">No data</td></tr>';
+                return;
+            }
+
+            app.ordersData = Array.isArray(data) ? data : (data.orders || []);
+            renderOrdersTable(app.ordersData);
+        }
+
+        function renderOrdersTable(orders) {
             const tbody = document.querySelector('#ordersTable tbody');
-            tbody.innerHTML = app.mockData.orders.map(o => `
+            tbody.innerHTML = orders.map(o => `
                 <tr>
-                    <td>${o.id}</td>
-                    <td>${o.customer}</td>
-                    <td>${o.fuel}</td>
-                    <td>${o.volume}</td>
-                    <td>$${o.total}</td>
-                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status}</span></td>
-                    <td>${o.driver || '-'}</td>
-                    <td>${o.date}</td>
+                    <td>${o.id || '-'}</td>
+                    <td>${o.customer_name || o.customer || '-'}</td>
+                    <td>${o.fuel_type || o.fuel || '-'}</td>
+                    <td>${o.volume || 0}</td>
+                    <td>K${o.total || 0}</td>
+                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status || '-'}</span></td>
+                    <td>${o.driver_name || o.driver || '-'}</td>
+                    <td>${o.delivery_date || o.date || '-'}</td>
                     <td><button class="btn btn-sm btn-primary">View</button></td>
                 </tr>
             `).join('');
@@ -1618,54 +1657,54 @@
             const status = document.getElementById('statusFilter')?.value || '';
             const date = document.getElementById('dateFilter')?.value || '';
 
-            let filtered = app.mockData.orders.filter(o => {
-                const matchSearch = !search || o.id.toLowerCase().includes(search) || o.customer.toLowerCase().includes(search);
+            let filtered = (app.ordersData || []).filter(o => {
+                const matchSearch = !search ||
+                    (o.id || '').toLowerCase().includes(search) ||
+                    (o.customer_name || o.customer || '').toLowerCase().includes(search) ||
+                    (o.order_number || '').toLowerCase().includes(search);
                 const matchStatus = !status || o.status === status;
-                const matchDate = !date || o.date === date;
+                const matchDate = !date || (o.delivery_date || o.date) === date;
                 return matchSearch && matchStatus && matchDate;
             });
 
-            const tbody = document.querySelector('#ordersTable tbody');
-            tbody.innerHTML = filtered.map(o => `
-                <tr>
-                    <td>${o.id}</td>
-                    <td>${o.customer}</td>
-                    <td>${o.fuel}</td>
-                    <td>${o.volume}</td>
-                    <td>$${o.total}</td>
-                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status}</span></td>
-                    <td>${o.driver || '-'}</td>
-                    <td>${o.date}</td>
-                    <td><button class="btn btn-sm btn-primary">View</button></td>
-                </tr>
-            `).join('');
+            renderOrdersTable(filtered);
         }
 
         // Dispatch
-        function loadDispatch() {
-            const activeOrders = app.mockData.orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+        async function loadDispatch() {
+            const data = await apiCall('/dispatch');
+            if (!data) {
+                document.querySelector('#dispatchOrdersTable tbody').innerHTML = '<tr><td colspan="5">No data</td></tr>';
+                document.querySelector('#availableDriversTable tbody').innerHTML = '<tr><td colspan="4">No data</td></tr>';
+                return;
+            }
+
+            app.dispatchData = data;
+            const activeOrders = data.active_orders || [];
+            const availableDrivers = data.available_drivers || [];
+
             const tbody = document.querySelector('#dispatchOrdersTable tbody');
             tbody.innerHTML = activeOrders.map(o => `
                 <tr>
-                    <td>${o.id}</td>
-                    <td>${o.customer}</td>
-                    <td>${o.location}</td>
-                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status}</span></td>
+                    <td>${o.id || '-'}</td>
+                    <td>${o.customer_name || '-'}</td>
+                    <td>${o.location || o.delivery_location || '-'}</td>
+                    <td><span class="badge badge-${getStatusClass(o.status)}">${o.status || '-'}</span></td>
                     <td><button class="btn btn-sm btn-primary" onclick="openAssignModal('${o.id}')">Assign</button></td>
                 </tr>
             `).join('');
 
             const driversTbody = document.querySelector('#availableDriversTable tbody');
-            driversTbody.innerHTML = app.mockData.drivers.map(d => `
+            driversTbody.innerHTML = availableDrivers.map(d => `
                 <tr>
-                    <td>${d.name}</td>
-                    <td>${d.plate}</td>
+                    <td>${d.name || '-'}</td>
+                    <td>${d.plate || '-'}</td>
                     <td><span class="badge badge-success">Available</span></td>
-                    <td>⭐ ${d.rating}</td>
+                    <td>⭐ ${d.rating || 'N/A'}</td>
                 </tr>
             `).join('');
 
-            setupDriverSelect();
+            setupDriverSelect(availableDrivers);
         }
 
         function openAssignModal(orderId) {
@@ -1673,41 +1712,66 @@
             document.getElementById('assignModal').classList.add('active');
         }
 
-        function setupDriverSelect() {
+        function setupDriverSelect(drivers) {
             const select = document.getElementById('driverSelect');
-            select.innerHTML = '<option value="">Choose a driver...</option>' + 
-                app.mockData.drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            select.innerHTML = '<option value="">Choose a driver...</option>' +
+                (drivers || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
         }
 
-        document.getElementById('assignConfirm')?.addEventListener('click', () => {
-            alert('Driver assigned successfully!');
-            document.getElementById('assignModal').classList.remove('active');
+        document.getElementById('assignConfirm')?.addEventListener('click', async () => {
+            const orderId = document.getElementById('assignOrderId').value;
+            const driverId = document.getElementById('driverSelect').value;
+
+            if (!driverId) {
+                alert('Please select a driver');
+                return;
+            }
+
+            const result = await apiCall('/dispatch/assign', 'POST', {
+                order_id: orderId,
+                driver_id: driverId
+            });
+
+            if (result) {
+                alert('Driver assigned successfully!');
+                document.getElementById('assignModal').classList.remove('active');
+                loadDispatch();
+            } else {
+                alert('Failed to assign driver');
+            }
         });
 
         // Drivers
-        function loadDrivers() {
+        async function loadDrivers() {
+            const data = await apiCall('/drivers');
+            if (!data) {
+                document.getElementById('driverGrid').innerHTML = '<p>No data</p>';
+                return;
+            }
+
+            app.driversData = Array.isArray(data) ? data : (data.drivers || []);
             const grid = document.getElementById('driverGrid');
-            grid.innerHTML = app.mockData.drivers.map(d => `
+            grid.innerHTML = app.driversData.map(d => `
                 <div class="driver-card">
                     <div class="driver-info">
-                        <div class="driver-avatar">${d.name.charAt(0)}</div>
+                        <div class="driver-avatar">${(d.name || '-').charAt(0)}</div>
                         <div class="driver-details">
-                            <h3>${d.name}</h3>
-                            <div class="driver-rating">⭐ ${d.rating} (${d.deliveries} deliveries)</div>
+                            <h3>${d.name || '-'}</h3>
+                            <div class="driver-rating">⭐ ${d.rating || 'N/A'} (${d.total_deliveries || d.completed_orders || 0} deliveries)</div>
                         </div>
                     </div>
                     <div class="driver-stats">
                         <div class="driver-stat">
                             <div class="driver-stat-label">Plate</div>
-                            <div class="driver-stat-value">${d.plate}</div>
+                            <div class="driver-stat-value">${d.plate || '-'}</div>
                         </div>
                         <div class="driver-stat">
                             <div class="driver-stat-label">Earnings</div>
-                            <div class="driver-stat-value">$${d.earnings}</div>
+                            <div class="driver-stat-value">K${d.total_earnings || 0}</div>
                         </div>
                     </div>
                     <div class="driver-actions">
-                        <button class="status-toggle ${d.status === 'active' ? 'active' : ''}">
+                        <button class="status-toggle ${d.status === 'active' ? 'active' : ''}" onclick="toggleDriverStatus('${d.id}', '${d.status}')">
                             ${d.status === 'active' ? 'Active' : 'Inactive'}
                         </button>
                         <button class="btn btn-sm btn-secondary">Edit</button>
@@ -1716,18 +1780,39 @@
             `).join('');
         }
 
+        async function toggleDriverStatus(driverId, currentStatus) {
+            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+            const result = await apiCall(`/drivers/${driverId}`, 'PUT', { status: newStatus });
+            if (result) {
+                loadDrivers();
+            } else {
+                alert('Failed to update driver status');
+            }
+        }
+
         // Fleet
-        function loadFleet() {
+        async function loadFleet() {
+            const data = await apiCall('/vehicles');
+            if (!data) {
+                document.querySelector('#fleetTable tbody').innerHTML = '<tr><td colspan="7">No data</td></tr>';
+                return;
+            }
+
+            app.vehiclesData = Array.isArray(data) ? data : (data.vehicles || []);
+            renderFleetTable(app.vehiclesData);
+        }
+
+        function renderFleetTable(vehicles) {
             const tbody = document.querySelector('#fleetTable tbody');
-            tbody.innerHTML = app.mockData.vehicles.map(v => `
+            tbody.innerHTML = vehicles.map(v => `
                 <tr>
-                    <td>${v.id}</td>
-                    <td>${v.plate}</td>
-                    <td>${v.owner}</td>
-                    <td>${v.model}</td>
-                    <td>${v.capacity}L</td>
-                    <td><span class="badge badge-${v.status === 'in_use' ? 'info' : v.status === 'available' ? 'success' : 'warning'}">${v.status}</span></td>
-                    <td>${v.service}</td>
+                    <td>${v.id || '-'}</td>
+                    <td>${v.plate || '-'}</td>
+                    <td>${v.owner_name || v.owner || '-'}</td>
+                    <td>${v.name || v.model || '-'}</td>
+                    <td>${v.fuel_capacity || v.capacity || 0}L</td>
+                    <td><span class="badge badge-${v.status === 'in_use' ? 'info' : v.status === 'available' ? 'success' : 'warning'}">${v.status || 'unknown'}</span></td>
+                    <td>${v.last_service_date || v.service || '-'}</td>
                 </tr>
             `).join('');
         }
@@ -1736,97 +1821,96 @@
             const search = (document.getElementById('vehicleSearch')?.value || '').toLowerCase();
             const status = document.getElementById('statusFilterFleet')?.value || '';
 
-            let filtered = app.mockData.vehicles.filter(v => {
-                const matchSearch = !search || v.plate.toLowerCase().includes(search) || v.owner.toLowerCase().includes(search);
+            let filtered = (app.vehiclesData || []).filter(v => {
+                const matchSearch = !search ||
+                    (v.plate || '').toLowerCase().includes(search) ||
+                    (v.owner_name || v.owner || '').toLowerCase().includes(search);
                 const matchStatus = !status || v.status === status;
                 return matchSearch && matchStatus;
             });
 
-            const tbody = document.querySelector('#fleetTable tbody');
-            tbody.innerHTML = filtered.map(v => `
-                <tr>
-                    <td>${v.id}</td>
-                    <td>${v.plate}</td>
-                    <td>${v.owner}</td>
-                    <td>${v.model}</td>
-                    <td>${v.capacity}L</td>
-                    <td><span class="badge badge-${v.status === 'in_use' ? 'info' : v.status === 'available' ? 'success' : 'warning'}">${v.status}</span></td>
-                    <td>${v.service}</td>
-                </tr>
-            `).join('');
+            renderFleetTable(filtered);
         }
 
         // Customers
-        function loadCustomers() {
+        async function loadCustomers() {
+            const data = await apiCall('/customers');
+            if (!data) {
+                document.querySelector('#customersTable tbody').innerHTML = '<tr><td colspan="7">No data</td></tr>';
+                return;
+            }
+
+            app.customersData = Array.isArray(data) ? data : (data.customers || []);
+            renderCustomersTable(app.customersData);
+        }
+
+        function renderCustomersTable(customers) {
             const tbody = document.querySelector('#customersTable tbody');
-            tbody.innerHTML = app.mockData.customers.map(c => `
+            tbody.innerHTML = customers.map(c => `
                 <tr>
-                    <td>${c.name}</td>
-                    <td>${c.email}</td>
-                    <td>${c.company}</td>
-                    <td>${c.phone}</td>
-                    <td>${c.orders}</td>
-                    <td>$${c.spent}</td>
-                    <td>${c.joined}</td>
+                    <td>${c.name || '-'}</td>
+                    <td>${c.email || '-'}</td>
+                    <td>${c.company || '-'}</td>
+                    <td>${c.phone || '-'}</td>
+                    <td>${c.order_count || 0}</td>
+                    <td>K${c.total_spent || 0}</td>
+                    <td>${c.created_at || c.joined || '-'}</td>
                 </tr>
             `).join('');
         }
 
         function filterCustomers() {
             const search = (document.getElementById('customerSearch')?.value || '').toLowerCase();
-            let filtered = app.mockData.customers.filter(c => 
-                c.name.toLowerCase().includes(search) || 
-                c.email.toLowerCase().includes(search) ||
-                c.company.toLowerCase().includes(search)
+            let filtered = (app.customersData || []).filter(c =>
+                (c.name || '').toLowerCase().includes(search) ||
+                (c.email || '').toLowerCase().includes(search) ||
+                (c.company || '').toLowerCase().includes(search)
             );
 
-            const tbody = document.querySelector('#customersTable tbody');
-            tbody.innerHTML = filtered.map(c => `
-                <tr>
-                    <td>${c.name}</td>
-                    <td>${c.email}</td>
-                    <td>${c.company}</td>
-                    <td>${c.phone}</td>
-                    <td>${c.orders}</td>
-                    <td>$${c.spent}</td>
-                    <td>${c.joined}</td>
-                </tr>
-            `).join('');
+            renderCustomersTable(filtered);
         }
 
         // Finance
-        function loadFinance() {
-            const orders = app.mockData.orders;
-            const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-            const driverPayouts = Math.round(totalRevenue * 0.15);
-            const netRevenue = totalRevenue - driverPayouts;
+        async function loadFinance() {
+            const data = await apiCall('/finance');
+            if (!data) {
+                document.getElementById('financeRevenue').textContent = 'K0';
+                document.getElementById('driverPayouts').textContent = 'K0';
+                document.getElementById('netRevenue').textContent = 'K0';
+                document.querySelector('#fuelBreakdownTable tbody').innerHTML = '<tr><td colspan="5">No data</td></tr>';
+                return;
+            }
 
-            document.getElementById('financeRevenue').textContent = '$' + totalRevenue.toLocaleString();
-            document.getElementById('driverPayouts').textContent = '$' + driverPayouts.toLocaleString();
-            document.getElementById('netRevenue').textContent = '$' + netRevenue.toLocaleString();
+            app.financeData = data;
+            const totalRevenue = data.total_revenue || 0;
+            const driverPayouts = data.driver_payouts || 0;
+            const netRevenue = data.net_revenue || 0;
+
+            document.getElementById('financeRevenue').textContent = 'K' + totalRevenue.toLocaleString();
+            document.getElementById('driverPayouts').textContent = 'K' + driverPayouts.toLocaleString();
+            document.getElementById('netRevenue').textContent = 'K' + netRevenue.toLocaleString();
 
             // Daily Revenue Chart
-            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            const dailyRev = [800, 950, 1100, 1050, 1200, 900, 800];
+            const dailyData = data.daily_revenue || [];
+            const days = dailyData.map(d => {
+                const date = new Date(d.date);
+                return date.toLocaleDateString('en-US', { weekday: 'short' });
+            }) || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const dailyRev = dailyData.map(d => d.revenue) || [0, 0, 0, 0, 0, 0, 0];
             renderBarChart('dailyRevenueChart', days, dailyRev);
 
             // Fuel Breakdown
-            const fuelBreakdown = {
-                'Diesel': { orders: orders.filter(o => o.fuel === 'Diesel').length, litres: orders.filter(o => o.fuel === 'Diesel').reduce((sum, o) => sum + o.volume, 0) },
-                'Petrol': { orders: orders.filter(o => o.fuel === 'Petrol').length, litres: orders.filter(o => o.fuel === 'Petrol').reduce((sum, o) => sum + o.volume, 0) },
-                'LPG': { orders: orders.filter(o => o.fuel === 'LPG').length, litres: orders.filter(o => o.fuel === 'LPG').reduce((sum, o) => sum + o.volume, 0) },
-            };
-
+            const fuelBreakdown = data.fuel_breakdown || [];
             const tbody = document.querySelector('#fuelBreakdownTable tbody');
-            tbody.innerHTML = Object.entries(fuelBreakdown).map(([fuel, data]) => {
-                const revenue = data.orders * 3000; // Mock calculation
-                const percent = ((revenue / totalRevenue) * 100).toFixed(1);
+            tbody.innerHTML = fuelBreakdown.map(fuel => {
+                const revenue = fuel.revenue || 0;
+                const percent = totalRevenue > 0 ? ((revenue / totalRevenue) * 100).toFixed(1) : 0;
                 return `
                     <tr>
-                        <td>${fuel}</td>
-                        <td>${data.orders}</td>
-                        <td>${data.litres}L</td>
-                        <td>$${revenue}</td>
+                        <td>${fuel.fuel_type || '-'}</td>
+                        <td>${fuel.orders || 0}</td>
+                        <td>${fuel.litres || 0}L</td>
+                        <td>K${revenue}</td>
                         <td>${percent}%</td>
                     </tr>
                 `;
@@ -1834,71 +1918,120 @@
         }
 
         // Pricing
-        function loadPricing() {
+        async function loadPricing() {
+            const data = await apiCall('/dashboard');
+            if (!data || !data.fuel_prices) {
+                document.getElementById('priceGrid').innerHTML = '<p>No data</p>';
+                return;
+            }
+
+            const prices = data.fuel_prices || [];
             const grid = document.getElementById('priceGrid');
-            grid.innerHTML = app.mockData.prices.map(p => `
+            grid.innerHTML = prices.map(p => `
                 <div class="price-card">
                     <div class="price-header">
-                        <div class="price-name">${p.name}</div>
+                        <div class="price-name">${p.fuel_type || p.name || '-'}</div>
                     </div>
-                    <div class="price-value">$${p.price.toFixed(2)}<span style="font-size: 14px; color: var(--grey);">/L</span></div>
+                    <div class="price-value">K${(p.price_per_litre || p.price || 0).toFixed(2)}<span style="font-size: 14px; color: var(--grey);">/L</span></div>
                     <div class="price-actions">
-                        <button class="btn btn-primary btn-sm" onclick="openPriceModal('${p.id}', '${p.name}', ${p.price})">Edit</button>
+                        <button class="btn btn-primary btn-sm" onclick="openPriceModal('${p.id}', '${p.fuel_type || p.name}', ${p.price_per_litre || p.price})">Edit</button>
                     </div>
                 </div>
             `).join('');
         }
 
+        let currentPriceId = null;
+
         function openPriceModal(id, name, price) {
+            currentPriceId = id;
             document.getElementById('editFuelType').value = name;
             document.getElementById('editPrice').value = price;
             document.getElementById('priceModal').classList.add('active');
         }
 
-        document.getElementById('priceSave')?.addEventListener('click', () => {
-            alert('Price updated successfully!');
-            document.getElementById('priceModal').classList.remove('active');
+        document.getElementById('priceSave')?.addEventListener('click', async () => {
+            if (!currentPriceId) {
+                alert('Invalid price ID');
+                return;
+            }
+
+            const newPrice = parseFloat(document.getElementById('editPrice').value);
+            if (isNaN(newPrice)) {
+                alert('Please enter a valid price');
+                return;
+            }
+
+            const result = await apiCall(`/prices/${currentPriceId}`, 'PUT', {
+                price_per_litre: newPrice
+            });
+
+            if (result) {
+                alert('Price updated successfully!');
+                document.getElementById('priceModal').classList.remove('active');
+                loadPricing();
+            } else {
+                alert('Failed to update price');
+            }
         });
 
         // Analytics
-        function loadAnalytics() {
-            const orders = app.mockData.orders;
+        async function loadAnalytics() {
+            const dashData = app.dashboardData || await apiCall('/dashboard');
+            const ordersData = app.ordersData || await apiCall('/orders');
 
-            // Trend Chart (last 30 days - simplified to 6 periods)
-            const periods = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
-            const trends = [3, 4, 6, 5, 7, 4];
+            if (!dashData) {
+                document.getElementById('activityList').innerHTML = '<p>No data</p>';
+                return;
+            }
+
+            // Trend Chart (using monthly_revenue if available)
+            const monthlyData = dashData.monthly_revenue || [];
+            const periods = monthlyData.map(m => m.month) || ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
+            const trends = monthlyData.map(m => m.orders || 0) || [3, 4, 6, 5, 7, 4];
             renderBarChart('trendChart', periods, trends);
 
             // Fuel Type Distribution
+            const recentOrders = dashData.recent_orders || [];
             const fuelTypes = ['Diesel', 'Petrol', 'LPG'];
             const fuelCounts = [
-                orders.filter(o => o.fuel === 'Diesel').length,
-                orders.filter(o => o.fuel === 'Petrol').length,
-                orders.filter(o => o.fuel === 'LPG').length
+                recentOrders.filter(o => (o.fuel_type || '').includes('Diesel')).length,
+                recentOrders.filter(o => (o.fuel_type || '').includes('Petrol')).length,
+                recentOrders.filter(o => (o.fuel_type || '').includes('LPG')).length
             ];
             renderBarChart('fuelTypeChart', fuelTypes, fuelCounts);
 
             // Top Customers
-            const topCustomers = app.mockData.customers.sort((a, b) => b.spent - a.spent);
+            const customers = app.customersData || await apiCall('/customers');
+            const customersArray = Array.isArray(customers) ? customers : (customers?.customers || []);
+            const topCustomers = customersArray.sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0));
             const tbody = document.querySelector('#topCustomersTable tbody');
-            tbody.innerHTML = topCustomers.map((c, i) => `
+            tbody.innerHTML = topCustomers.slice(0, 5).map((c, i) => `
                 <tr>
                     <td>#${i + 1}</td>
-                    <td>${c.name}</td>
-                    <td>${c.orders}</td>
-                    <td>$${c.spent}</td>
+                    <td>${c.name || '-'}</td>
+                    <td>${c.order_count || 0}</td>
+                    <td>K${c.total_spent || 0}</td>
                 </tr>
             `).join('');
 
-            // Activity List
-            const activities = [
-                { icon: '📦', title: 'New Order', desc: 'ORD-004 created by Tech Inc' },
-                { icon: '✅', title: 'Order Completed', desc: 'ORD-001 delivered by John Smith' },
-                { icon: '👤', title: 'New Driver', desc: 'Mike Johnson registered' },
-                { icon: '💰', title: 'Payment Received', desc: '$1500 from Acme Corp' },
-            ];
-
+            // Activity List - using recent_orders from dashboard
             const activityList = document.getElementById('activityList');
+            const activities = (dashData.recent_orders || []).slice(0, 4).map(order => {
+                let icon = '📦';
+                let title = 'Order Update';
+                let desc = `${order.order_number || order.id} from ${order.customer_name}`;
+
+                if (order.status === 'completed') {
+                    icon = '✅';
+                    title = 'Order Completed';
+                } else if (order.status === 'in_progress') {
+                    icon = '🚚';
+                    title = 'Order In Progress';
+                }
+
+                return { icon, title, desc };
+            });
+
             activityList.innerHTML = activities.map(a => `
                 <li class="activity-item">
                     <div class="activity-icon">${a.icon}</div>
