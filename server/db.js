@@ -104,6 +104,7 @@ db.exec(`
     phone TEXT,
     plate TEXT,
     licence_number TEXT,
+    vehicle_id TEXT,
     rating REAL DEFAULT 4.8,
     total_deliveries INTEGER DEFAULT 0,
     status TEXT DEFAULT 'available',
