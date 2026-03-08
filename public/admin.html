@@ -1415,17 +1415,40 @@
                     <input type="text" id="newDriverPhone" placeholder="e.g. +260977123456">
                 </div>
                 <div class="form-group">
-                    <label>Vehicle Plate</label>
-                    <input type="text" id="newDriverPlate" placeholder="e.g. ABT 4421">
-                </div>
-                <div class="form-group">
-                    <label>Licence Number</label>
+                    <label>Driving Licence Number</label>
                     <input type="text" id="newDriverLicence" placeholder="e.g. DL-2024-1234">
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="document.getElementById('addDriverModal').classList.remove('active')">Cancel</button>
                 <button class="btn btn-primary" onclick="submitAddDriver()">Add Driver</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Vehicle to Driver Modal -->
+    <div class="modal" id="assignVehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Assign Vehicle to Driver</span>
+                <button class="modal-close" onclick="document.getElementById('assignVehicleModal').classList.remove('active')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Driver</label>
+                    <input type="text" id="assignVehicleDriverName" disabled>
+                    <input type="hidden" id="assignVehicleDriverId">
+                </div>
+                <div class="form-group">
+                    <label>Select Vehicle (Tanker)</label>
+                    <select id="assignVehicleSelect" style="width:100%;padding:12px;border:2px solid var(--light-grey);border-radius:6px">
+                        <option value="">-- No vehicle assigned --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('assignVehicleModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAssignVehicle()">Save Assignment</button>
             </div>
         </div>
     </div>
@@ -1502,14 +1525,15 @@
                     options.body = JSON.stringify(body);
                 }
                 const response = await fetch(`${app.apiBase}${endpoint}`, options);
+                const data = await response.json().catch(() => null);
                 if (!response.ok) {
-                    console.error(`API Error: ${response.status} ${response.statusText}`);
-                    return null;
+                    console.error('API Error:', response.status, data);
+                    return { _error: true, error: data?.error || ('Server error ' + response.status) };
                 }
-                return await response.json();
+                return data;
             } catch (error) {
-                console.error(`API call failed: ${error}`);
-                return null;
+                console.error('API call failed:', error);
+                return { _error: true, error: error.message || 'Network error' };
             }
         }
 
@@ -1660,7 +1684,7 @@
         // Dashboard
         async function loadDashboard() {
             const data = await apiCall('/dashboard');
-            if (!data) {
+            if (!data || data._error) {
                 document.getElementById('totalOrders').textContent = 'No data';
                 document.getElementById('totalRevenue').textContent = 'K0';
                 document.getElementById('activeOrders').textContent = 'No data';
@@ -1712,7 +1736,7 @@
         // Orders
         async function loadOrders() {
             const data = await apiCall('/orders');
-            if (!data) {
+            if (!data || data._error) {
                 document.querySelector('#ordersTable tbody').innerHTML = '<tr><td colspan="9">No data</td></tr>';
                 return;
             }
@@ -1759,7 +1783,7 @@
         // Dispatch
         async function loadDispatch() {
             const data = await apiCall('/dispatch');
-            if (!data) {
+            if (!data || data._error) {
                 document.querySelector('#dispatchOrdersTable tbody').innerHTML = '<tr><td colspan="5">No data</td></tr>';
                 document.querySelector('#availableDriversTable tbody').innerHTML = '<tr><td colspan="4">No data</td></tr>';
                 return;
@@ -1830,7 +1854,7 @@
         // Drivers
         async function loadDrivers() {
             const data = await apiCall('/drivers');
-            if (!data) {
+            if (!data || data._error) {
                 document.getElementById('driverGrid').innerHTML = '<p>No data</p>';
                 return;
             }
@@ -1848,28 +1872,28 @@
                     </div>
                     <div class="driver-stats">
                         <div class="driver-stat">
-                            <div class="driver-stat-label">Plate</div>
-                            <div class="driver-stat-value">${d.plate || '-'}</div>
+                            <div class="driver-stat-label">Vehicle</div>
+                            <div class="driver-stat-value">${d.vehicle_name ? d.vehicle_name + ' (' + (d.vehicle_plate || '') + ')' : '<em>None</em>'}</div>
                         </div>
                         <div class="driver-stat">
                             <div class="driver-stat-label">Earnings</div>
-                            <div class="driver-stat-value">K${d.total_earnings || 0}</div>
+                            <div class="driver-stat-value">K${Math.round(d.total_earnings || 0).toLocaleString()}</div>
                         </div>
                     </div>
                     <div class="driver-actions">
-                        <button class="status-toggle ${d.status === 'active' ? 'active' : ''}" onclick="toggleDriverStatus('${d.id}', '${d.status}')">
-                            ${d.status === 'active' ? 'Active' : 'Inactive'}
+                        <button class="status-toggle ${d.status === 'available' ? 'active' : ''}" onclick="toggleDriverStatus('${d.id}', '${d.status}')">
+                            ${d.status === 'available' ? 'Available' : d.status || 'Offline'}
                         </button>
-                        <button class="btn btn-sm btn-secondary">Edit</button>
+                        <button class="btn btn-sm btn-secondary" onclick="openAssignVehicleModal('${d.id}', '${(d.name || '').replace(/'/g, '')}', '${d.vehicle_id || ''}')">Assign Vehicle</button>
                     </div>
                 </div>
             `).join('');
         }
 
         async function toggleDriverStatus(driverId, currentStatus) {
-            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-            const result = await apiCall(`/drivers/${driverId}`, 'PUT', { status: newStatus });
-            if (result) {
+            const newStatus = currentStatus === 'available' ? 'offline' : 'available';
+            const result = await apiCall('/drivers/' + driverId, 'PUT', { status: newStatus });
+            if (result && !result._error) {
                 loadDrivers();
             } else {
                 alert('Failed to update driver status');
@@ -1879,7 +1903,7 @@
         // Fleet
         async function loadFleet() {
             const data = await apiCall('/vehicles');
-            if (!data) {
+            if (!data || data._error) {
                 document.querySelector('#fleetTable tbody').innerHTML = '<tr><td colspan="6">No data</td></tr>';
                 return;
             }
@@ -1920,7 +1944,7 @@
         // Customers
         async function loadCustomers() {
             const data = await apiCall('/customers');
-            if (!data) {
+            if (!data || data._error) {
                 document.querySelector('#customersTable tbody').innerHTML = '<tr><td colspan="7">No data</td></tr>';
                 return;
             }
@@ -1958,7 +1982,7 @@
         // Finance
         async function loadFinance() {
             const data = await apiCall('/finance');
-            if (!data) {
+            if (!data || data._error) {
                 document.getElementById('financeRevenue').textContent = 'K0';
                 document.getElementById('driverPayouts').textContent = 'K0';
                 document.getElementById('netRevenue').textContent = 'K0';
@@ -2163,7 +2187,6 @@
             document.getElementById('newDriverEmail').value = '';
             document.getElementById('newDriverPassword').value = '';
             document.getElementById('newDriverPhone').value = '';
-            document.getElementById('newDriverPlate').value = '';
             document.getElementById('newDriverLicence').value = '';
             document.getElementById('addDriverModal').classList.add('active');
         }
@@ -2173,7 +2196,6 @@
             const email = document.getElementById('newDriverEmail').value.trim();
             const password = document.getElementById('newDriverPassword').value;
             const phone = document.getElementById('newDriverPhone').value.trim();
-            const plate = document.getElementById('newDriverPlate').value.trim();
             const licence_number = document.getElementById('newDriverLicence').value.trim();
 
             if (!name || !email || !password) {
@@ -2185,8 +2207,8 @@
                 return;
             }
 
-            const result = await apiCall('/drivers', 'POST', { email, password, name, phone, plate, licence_number });
-            if (result && !result.error) {
+            const result = await apiCall('/drivers', 'POST', { email, password, name, phone, licence_number });
+            if (result && !result._error) {
                 alert('Driver added successfully!');
                 document.getElementById('addDriverModal').classList.remove('active');
                 loadDrivers();
@@ -2201,17 +2223,18 @@
             document.getElementById('newVehiclePlate').value = '';
             document.getElementById('newVehicleFuel').value = 'diesel';
             document.getElementById('newVehicleTank').value = '80';
-            // Load customers into dropdown
             const select = document.getElementById('newVehicleOwner');
             const customers = app.customersData || [];
-            select.innerHTML = customers.map(c => `<option value="${c.id}">${c.name} (${c.company || 'N/A'})</option>`).join('');
-            if (customers.length === 0) {
-                select.innerHTML = '<option value="">No customers loaded</option>';
-                // Try loading customers
+            if (customers.length > 0) {
+                select.innerHTML = customers.map(c => `<option value="${c.id}">${c.name} (${c.company || 'N/A'})</option>`).join('');
+            } else {
+                select.innerHTML = '<option value="">Loading...</option>';
                 apiCall('/customers').then(data => {
-                    const custs = Array.isArray(data) ? data : (data?.customers || []);
-                    app.customersData = custs;
-                    select.innerHTML = custs.map(c => `<option value="${c.id}">${c.name} (${c.company || 'N/A'})</option>`).join('');
+                    if (data && !data._error) {
+                        const custs = Array.isArray(data) ? data : (data.customers || []);
+                        app.customersData = custs;
+                        select.innerHTML = custs.map(c => `<option value="${c.id}">${c.name} (${c.company || 'N/A'})</option>`).join('');
+                    }
                 });
             }
             document.getElementById('addVehicleModal').classList.add('active');
@@ -2230,12 +2253,47 @@
             }
 
             const result = await apiCall('/vehicles', 'POST', { name, plate, fuel_type, tank_capacity, user_id: user_id || undefined });
-            if (result && !result.error) {
+            if (result && !result._error) {
                 alert('Vehicle added successfully!');
                 document.getElementById('addVehicleModal').classList.remove('active');
                 loadFleet();
             } else {
                 alert('Failed to add vehicle: ' + (result?.error || 'Unknown error'));
+            }
+        }
+
+        // ── Assign Vehicle to Driver ──
+        function openAssignVehicleModal(driverId, driverName, currentVehicleId) {
+            document.getElementById('assignVehicleDriverName').value = driverName;
+            document.getElementById('assignVehicleDriverId').value = driverId;
+            const select = document.getElementById('assignVehicleSelect');
+            select.innerHTML = '<option value="">-- No vehicle assigned --</option>';
+            // Load vehicles
+            apiCall('/vehicles').then(data => {
+                if (data && !data._error) {
+                    const vehicles = Array.isArray(data) ? data : (data.vehicles || []);
+                    vehicles.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.textContent = v.name + ' (' + v.plate + ')';
+                        if (v.id === currentVehicleId) opt.selected = true;
+                        select.appendChild(opt);
+                    });
+                }
+            });
+            document.getElementById('assignVehicleModal').classList.add('active');
+        }
+
+        async function submitAssignVehicle() {
+            const driverId = document.getElementById('assignVehicleDriverId').value;
+            const vehicleId = document.getElementById('assignVehicleSelect').value;
+            const result = await apiCall('/drivers/' + driverId + '/vehicle', 'PUT', { vehicle_id: vehicleId || null });
+            if (result && !result._error) {
+                alert('Vehicle assignment updated!');
+                document.getElementById('assignVehicleModal').classList.remove('active');
+                loadDrivers();
+            } else {
+                alert('Failed to assign vehicle: ' + (result?.error || 'Unknown error'));
             }
         }
 

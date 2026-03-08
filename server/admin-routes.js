@@ -140,13 +140,16 @@ router.get('/customers', adminAuth, (req, res) => {
   res.json(customers);
 });
 
-// All drivers
+// All drivers (with assigned vehicle info)
 router.get('/drivers', adminAuth, (req, res) => {
   const drivers = db.prepare(`
-    SELECT d.id, d.email, d.name, d.phone, d.plate, d.licence_number, d.rating, d.total_deliveries, d.status, d.created_at,
+    SELECT d.id, d.email, d.name, d.phone, d.licence_number, d.rating, d.total_deliveries, d.status, d.created_at,
+           d.vehicle_id, v.name as vehicle_name, v.plate as vehicle_plate,
            COUNT(CASE WHEN o.status = 'delivered' THEN 1 END) as completed_orders,
            COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total * 0.15 ELSE 0 END), 0) as total_earnings
-    FROM drivers d LEFT JOIN orders o ON d.id = o.driver_id
+    FROM drivers d
+    LEFT JOIN vehicles v ON d.vehicle_id = v.id
+    LEFT JOIN orders o ON d.id = o.driver_id
     GROUP BY d.id ORDER BY d.total_deliveries DESC
   `).all();
   res.json(drivers);
@@ -154,7 +157,7 @@ router.get('/drivers', adminAuth, (req, res) => {
 
 // Create driver
 router.post('/drivers', adminAuth, (req, res) => {
-  const { email, password, name, phone, plate, licence_number } = req.body;
+  const { email, password, name, phone, licence_number } = req.body;
   if (!email || !password || !name) return res.status(400).json({ error: 'Email, password, and name are required' });
 
   const existing = db.prepare('SELECT id FROM drivers WHERE email = ?').get(email);
@@ -163,11 +166,11 @@ router.post('/drivers', adminAuth, (req, res) => {
   const id = uuid();
   const hashedPw = bcrypt.hashSync(password, 10);
   db.prepare(`
-    INSERT INTO drivers (id, email, password, name, phone, plate, licence_number, rating, total_deliveries, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 5.0, 0, 'available')
-  `).run(id, email, hashedPw, name, phone || null, plate || null, licence_number || null);
+    INSERT INTO drivers (id, email, password, name, phone, licence_number, rating, total_deliveries, status)
+    VALUES (?, ?, ?, ?, ?, ?, 5.0, 0, 'available')
+  `).run(id, email, hashedPw, name, phone || null, licence_number || null);
 
-  const driver = db.prepare('SELECT id, email, name, phone, plate, licence_number, rating, total_deliveries, status, created_at FROM drivers WHERE id = ?').get(id);
+  const driver = db.prepare('SELECT id, email, name, phone, licence_number, rating, total_deliveries, status, created_at FROM drivers WHERE id = ?').get(id);
   res.status(201).json(driver);
 });
 
@@ -184,8 +187,30 @@ router.put('/drivers/:id', adminAuth, (req, res) => {
   const { status, rating } = req.body;
   if (status) db.prepare('UPDATE drivers SET status = ? WHERE id = ?').run(status, req.params.id);
   if (rating) db.prepare('UPDATE drivers SET rating = ? WHERE id = ?').run(rating, req.params.id);
-  const driver = db.prepare('SELECT id, email, name, phone, plate, licence_number, rating, total_deliveries, status FROM drivers WHERE id = ?').get(req.params.id);
+  const driver = db.prepare('SELECT id, email, name, phone, licence_number, rating, total_deliveries, status FROM drivers WHERE id = ?').get(req.params.id);
   res.json(driver);
+});
+
+// Assign vehicle to driver
+router.put('/drivers/:id/vehicle', adminAuth, (req, res) => {
+  const { vehicle_id } = req.body;
+  const driver = db.prepare('SELECT id FROM drivers WHERE id = ?').get(req.params.id);
+  if (!driver) return res.status(404).json({ error: 'Driver not found' });
+
+  if (vehicle_id) {
+    const vehicle = db.prepare('SELECT id, plate FROM vehicles WHERE id = ?').get(vehicle_id);
+    if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+    db.prepare('UPDATE drivers SET vehicle_id = ?, plate = ? WHERE id = ?').run(vehicle_id, vehicle.plate, req.params.id);
+  } else {
+    db.prepare('UPDATE drivers SET vehicle_id = NULL, plate = NULL WHERE id = ?').run(req.params.id);
+  }
+
+  const updated = db.prepare(`
+    SELECT d.id, d.name, d.vehicle_id, v.name as vehicle_name, v.plate as vehicle_plate
+    FROM drivers d LEFT JOIN vehicles v ON d.vehicle_id = v.id
+    WHERE d.id = ?
+  `).get(req.params.id);
+  res.json(updated);
 });
 
 // Create vehicle
