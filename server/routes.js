@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { v4: uuid } = require('uuid');
+const { randomUUID: uuid } = require('crypto');
 const db = require('./db');
 const { generateToken, authMiddleware } = require('./auth');
 
