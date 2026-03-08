@@ -1,7 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const { v4: uuid } = require('uuid');
+const { randomUUID: uuid } = require('crypto');
 
 // Use /tmp for cloud deployments, local path otherwise
 const dbPath = process.env.DB_PATH || path.join(process.env.RAILWAY_ENVIRONMENT ? '/tmp' : __dirname, '..', 'fuel.db');
