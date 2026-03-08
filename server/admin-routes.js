@@ -152,6 +152,33 @@ router.get('/drivers', adminAuth, (req, res) => {
   res.json(drivers);
 });
 
+// Create driver
+router.post('/drivers', adminAuth, (req, res) => {
+  const { email, password, name, phone, plate, licence_number } = req.body;
+  if (!email || !password || !name) return res.status(400).json({ error: 'Email, password, and name are required' });
+
+  const existing = db.prepare('SELECT id FROM drivers WHERE email = ?').get(email);
+  if (existing) return res.status(409).json({ error: 'Driver with this email already exists' });
+
+  const id = uuid();
+  const hashedPw = bcrypt.hashSync(password, 10);
+  db.prepare(`
+    INSERT INTO drivers (id, email, password, name, phone, plate, licence_number, rating, total_deliveries, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 5.0, 0, 'available')
+  `).run(id, email, hashedPw, name, phone || null, plate || null, licence_number || null);
+
+  const driver = db.prepare('SELECT id, email, name, phone, plate, licence_number, rating, total_deliveries, status, created_at FROM drivers WHERE id = ?').get(id);
+  res.status(201).json(driver);
+});
+
+// Delete driver
+router.delete('/drivers/:id', adminAuth, (req, res) => {
+  const driver = db.prepare('SELECT id FROM drivers WHERE id = ?').get(req.params.id);
+  if (!driver) return res.status(404).json({ error: 'Driver not found' });
+  db.prepare('DELETE FROM drivers WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 // Update driver
 router.put('/drivers/:id', adminAuth, (req, res) => {
   const { status, rating } = req.body;
@@ -159,6 +186,41 @@ router.put('/drivers/:id', adminAuth, (req, res) => {
   if (rating) db.prepare('UPDATE drivers SET rating = ? WHERE id = ?').run(rating, req.params.id);
   const driver = db.prepare('SELECT id, email, name, phone, plate, licence_number, rating, total_deliveries, status FROM drivers WHERE id = ?').get(req.params.id);
   res.json(driver);
+});
+
+// Create vehicle
+router.post('/vehicles', adminAuth, (req, res) => {
+  const { user_id, name, plate, fuel_type, tank_capacity, icon } = req.body;
+  if (!name || !plate) return res.status(400).json({ error: 'Vehicle name and plate are required' });
+
+  // If no user_id provided, use the first user or create as admin fleet
+  let ownerId = user_id;
+  if (!ownerId) {
+    const firstUser = db.prepare('SELECT id FROM users LIMIT 1').get();
+    ownerId = firstUser ? firstUser.id : null;
+  }
+  if (!ownerId) return res.status(400).json({ error: 'No user found to assign vehicle to' });
+
+  const id = uuid();
+  db.prepare(`
+    INSERT INTO vehicles (id, user_id, name, plate, fuel_type, tank_capacity, icon)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, ownerId, name, plate, fuel_type || 'diesel', tank_capacity || 80, icon || '🚙');
+
+  const vehicle = db.prepare(`
+    SELECT v.*, u.name as owner_name, u.company as owner_company
+    FROM vehicles v LEFT JOIN users u ON v.user_id = u.id
+    WHERE v.id = ?
+  `).get(id);
+  res.status(201).json(vehicle);
+});
+
+// Delete vehicle
+router.delete('/vehicles/:id', adminAuth, (req, res) => {
+  const vehicle = db.prepare('SELECT id FROM vehicles WHERE id = ?').get(req.params.id);
+  if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+  db.prepare('DELETE FROM vehicles WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
 });
 
 // All vehicles (across all users)
