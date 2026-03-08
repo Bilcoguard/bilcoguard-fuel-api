@@ -1186,6 +1186,10 @@
 
                 <!-- Drivers Section -->
                 <section class="section" id="drivers">
+                    <div class="table-header" style="margin-bottom:16px">
+                        <div class="table-title">All Drivers</div>
+                        <button class="btn btn-primary" onclick="openAddDriverModal()">+ Add Driver</button>
+                    </div>
                     <div class="driver-grid" id="driverGrid"></div>
                 </section>
 
@@ -1195,6 +1199,7 @@
                         <div class="table-header">
                             <div class="table-title">Fleet Vehicles</div>
                             <div class="table-filters">
+                                <button class="btn btn-primary" style="margin-right:8px" onclick="openAddVehicleModal()">+ Add Vehicle</button>
                                 <input type="text" class="filter-input" id="vehicleSearch" placeholder="Search vehicles...">
                                 <select class="filter-select" id="statusFilterFleet">
                                     <option value="">All Status</option>
@@ -1207,13 +1212,12 @@
                         <table id="fleetTable">
                             <thead>
                                 <tr>
-                                    <th>Vehicle ID</th>
                                     <th>Plate</th>
                                     <th>Owner/Company</th>
                                     <th>Model</th>
-                                    <th>Capacity</th>
-                                    <th>Status</th>
-                                    <th>Last Service</th>
+                                    <th>Fuel Type</th>
+                                    <th>Tank Capacity</th>
+                                    <th>Added</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -1375,13 +1379,95 @@
                     <input type="text" id="editFuelType" disabled>
                 </div>
                 <div class="form-group">
-                    <label>Price per Litre ($)</label>
+                    <label>Price per Litre (K)</label>
                     <input type="number" id="editPrice" step="0.01" min="0">
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="priceCancel">Cancel</button>
                 <button class="btn btn-primary" id="priceSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Driver Modal -->
+    <div class="modal" id="addDriverModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Add New Driver</span>
+                <button class="modal-close" onclick="document.getElementById('addDriverModal').classList.remove('active')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="newDriverName" placeholder="e.g. Joseph Mwanza">
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="newDriverEmail" placeholder="e.g. driver@bilcoguard.com">
+                </div>
+                <div class="form-group">
+                    <label>Password *</label>
+                    <input type="password" id="newDriverPassword" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" id="newDriverPhone" placeholder="e.g. +260977123456">
+                </div>
+                <div class="form-group">
+                    <label>Vehicle Plate</label>
+                    <input type="text" id="newDriverPlate" placeholder="e.g. ABT 4421">
+                </div>
+                <div class="form-group">
+                    <label>Licence Number</label>
+                    <input type="text" id="newDriverLicence" placeholder="e.g. DL-2024-1234">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('addDriverModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddDriver()">Add Driver</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Vehicle Modal -->
+    <div class="modal" id="addVehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Add New Vehicle</span>
+                <button class="modal-close" onclick="document.getElementById('addVehicleModal').classList.remove('active')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Vehicle Name / Model *</label>
+                    <input type="text" id="newVehicleName" placeholder="e.g. Toyota Hilux">
+                </div>
+                <div class="form-group">
+                    <label>Plate Number *</label>
+                    <input type="text" id="newVehiclePlate" placeholder="e.g. BAH 1234">
+                </div>
+                <div class="form-group">
+                    <label>Fuel Type</label>
+                    <select id="newVehicleFuel" class="filter-select" style="width:100%;padding:12px;border:2px solid var(--light-grey);border-radius:6px">
+                        <option value="diesel">Diesel</option>
+                        <option value="petrol">Petrol</option>
+                        <option value="premium">Premium</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tank Capacity (Litres)</label>
+                    <input type="number" id="newVehicleTank" placeholder="e.g. 80" value="80">
+                </div>
+                <div class="form-group">
+                    <label>Owner (Customer)</label>
+                    <select id="newVehicleOwner" class="filter-select" style="width:100%;padding:12px;border:2px solid var(--light-grey);border-radius:6px">
+                        <option value="">Loading customers...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('addVehicleModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddVehicle()">Add Vehicle</button>
             </div>
         </div>
     </div>
@@ -1470,7 +1556,7 @@
 
                 const data = await response.json();
                 app.token = data.token;
-                app.currentUser = data.user?.name || 'Admin';
+                app.currentUser = data.admin?.name || data.user?.name || 'Admin';
                 localStorage.setItem('adminToken', app.token);
                 localStorage.setItem('adminUser', app.currentUser);
                 showAdmin();
@@ -1794,7 +1880,7 @@
         async function loadFleet() {
             const data = await apiCall('/vehicles');
             if (!data) {
-                document.querySelector('#fleetTable tbody').innerHTML = '<tr><td colspan="7">No data</td></tr>';
+                document.querySelector('#fleetTable tbody').innerHTML = '<tr><td colspan="6">No data</td></tr>';
                 return;
             }
 
@@ -1806,13 +1892,12 @@
             const tbody = document.querySelector('#fleetTable tbody');
             tbody.innerHTML = vehicles.map(v => `
                 <tr>
-                    <td>${v.id || '-'}</td>
                     <td>${v.plate || '-'}</td>
-                    <td>${v.owner_name || v.owner || '-'}</td>
-                    <td>${v.name || v.model || '-'}</td>
-                    <td>${v.fuel_capacity || v.capacity || 0}L</td>
-                    <td><span class="badge badge-${v.status === 'in_use' ? 'info' : v.status === 'available' ? 'success' : 'warning'}">${v.status || 'unknown'}</span></td>
-                    <td>${v.last_service_date || v.service || '-'}</td>
+                    <td>${v.owner_name || '-'} ${v.owner_company ? '(' + v.owner_company + ')' : ''}</td>
+                    <td>${v.icon || ''} ${v.name || '-'}</td>
+                    <td>${(v.fuel_type || 'diesel').charAt(0).toUpperCase() + (v.fuel_type || 'diesel').slice(1)}</td>
+                    <td>${v.tank_capacity || 0}L</td>
+                    <td>${v.created_at ? v.created_at.split('T')[0] : '-'}</td>
                 </tr>
             `).join('');
         }
@@ -2070,6 +2155,88 @@
                 'confirmed': 'info'
             };
             return map[status] || 'secondary';
+        }
+
+        // ── Add Driver ──
+        function openAddDriverModal() {
+            document.getElementById('newDriverName').value = '';
+            document.getElementById('newDriverEmail').value = '';
+            document.getElementById('newDriverPassword').value = '';
+            document.getElementById('newDriverPhone').value = '';
+            document.getElementById('newDriverPlate').value = '';
+            document.getElementById('newDriverLicence').value = '';
+            document.getElementById('addDriverModal').classList.add('active');
+        }
+
+        async function submitAddDriver() {
+            const name = document.getElementById('newDriverName').value.trim();
+            const email = document.getElementById('newDriverEmail').value.trim();
+            const password = document.getElementById('newDriverPassword').value;
+            const phone = document.getElementById('newDriverPhone').value.trim();
+            const plate = document.getElementById('newDriverPlate').value.trim();
+            const licence_number = document.getElementById('newDriverLicence').value.trim();
+
+            if (!name || !email || !password) {
+                alert('Name, email, and password are required');
+                return;
+            }
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters');
+                return;
+            }
+
+            const result = await apiCall('/drivers', 'POST', { email, password, name, phone, plate, licence_number });
+            if (result && !result.error) {
+                alert('Driver added successfully!');
+                document.getElementById('addDriverModal').classList.remove('active');
+                loadDrivers();
+            } else {
+                alert('Failed to add driver: ' + (result?.error || 'Unknown error'));
+            }
+        }
+
+        // ── Add Vehicle ──
+        function openAddVehicleModal() {
+            document.getElementById('newVehicleName').value = '';
+            document.getElementById('newVehiclePlate').value = '';
+            document.getElementById('newVehicleFuel').value = 'diesel';
+            document.getElementById('newVehicleTank').value = '80';
+            // Load customers into dropdown
+            const select = document.getElementById('newVehicleOwner');
+            const customers = app.customersData || [];
+            select.innerHTML = customers.map(c => `<option value="${c.id}">${c.name} (${c.company || 'N/A'})</option>`).join('');
+            if (customers.length === 0) {
+                select.innerHTML = '<option value="">No customers loaded</option>';
+                // Try loading customers
+                apiCall('/customers').then(data => {
+                    const custs = Array.isArray(data) ? data : (data?.customers || []);
+                    app.customersData = custs;
+                    select.innerHTML = custs.map(c => `<option value="${c.id}">${c.name} (${c.company || 'N/A'})</option>`).join('');
+                });
+            }
+            document.getElementById('addVehicleModal').classList.add('active');
+        }
+
+        async function submitAddVehicle() {
+            const name = document.getElementById('newVehicleName').value.trim();
+            const plate = document.getElementById('newVehiclePlate').value.trim();
+            const fuel_type = document.getElementById('newVehicleFuel').value;
+            const tank_capacity = parseInt(document.getElementById('newVehicleTank').value) || 80;
+            const user_id = document.getElementById('newVehicleOwner').value;
+
+            if (!name || !plate) {
+                alert('Vehicle name and plate number are required');
+                return;
+            }
+
+            const result = await apiCall('/vehicles', 'POST', { name, plate, fuel_type, tank_capacity, user_id: user_id || undefined });
+            if (result && !result.error) {
+                alert('Vehicle added successfully!');
+                document.getElementById('addVehicleModal').classList.remove('active');
+                loadFleet();
+            } else {
+                alert('Failed to add vehicle: ' + (result?.error || 'Unknown error'));
+            }
         }
 
         // Initialize on Load
