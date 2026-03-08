@@ -19,6 +19,14 @@ app.use(express.json());
 // API routes
 app.use('/api', routes);
 
+// Driver API routes
+const driverRoutes = require('./driver-routes');
+app.use('/api/driver', driverRoutes);
+
+// Admin API routes
+const adminRoutes = require('./admin-routes');
+app.use('/api/admin', adminRoutes);
+
 // Serve static frontend
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

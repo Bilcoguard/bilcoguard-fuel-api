@@ -95,6 +95,29 @@ db.exec(`
     read INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS drivers (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    name TEXT NOT NULL,
+    phone TEXT,
+    plate TEXT,
+    licence_number TEXT,
+    rating REAL DEFAULT 4.8,
+    total_deliveries INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'available',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS admins (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT DEFAULT 'admin',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // ── Seed Data ───────────────────────────────────────
@@ -205,6 +228,23 @@ if (userCount === 0) {
   insertNotif.run(uuid(), userId, 'Delivery En Route', 'Joseph Mwanza is on the way with your 120L Diesel order.', 'delivery');
   insertNotif.run(uuid(), userId, 'Price Update', 'Diesel prices updated to K28.50/L effective today.', 'info');
   insertNotif.run(uuid(), userId, 'Order Delivered', 'Your 200L Diesel delivery to Bilcoguard HQ is complete.', 'success');
+
+  // Demo drivers
+  const driverPw = bcrypt.hashSync('driver2026', 10);
+  const driverId1 = uuid();
+  const driverId2 = uuid();
+  db.prepare('INSERT INTO drivers (id, email, password, name, phone, plate, licence_number, rating, total_deliveries, status) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    .run(driverId1, 'driver@bilcoguard.com', driverPw, 'Joseph Mwanza', '+260966789012', 'ABT 4421', 'DL-2024-1234', 4.9, 156, 'available');
+  db.prepare('INSERT INTO drivers (id, email, password, name, phone, plate, licence_number, rating, total_deliveries, status) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    .run(driverId2, 'driver2@bilcoguard.com', driverPw, 'Moses Banda', '+260977654321', 'ABT 5567', 'DL-2023-5678', 4.7, 89, 'available');
+
+  // Update existing orders with driver_id
+  db.prepare("UPDATE orders SET driver_id = ? WHERE driver_name = 'Joseph Mwanza'").run(driverId1);
+
+  // Admin user
+  const adminPw = bcrypt.hashSync('admin2026', 10);
+  db.prepare('INSERT INTO admins (id, email, password, name, role) VALUES (?,?,?,?,?)')
+    .run(uuid(), 'admin@bilcoguard.com', adminPw, 'Peter Ndhlovu', 'super_admin');
 
   console.log('✅ Database seeded successfully');
 }
