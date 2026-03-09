@@ -2176,7 +2176,7 @@
                 <tr>
                     <td>${v.plate || '-'}</td>
                     <td>${v.owner_name || '-'} ${v.owner_company ? '(' + v.owner_company + ')' : ''}</td>
-                    <td>${v.icon || ''} ${v.name || '-'}</td>
+                    <td><span style="display:inline-flex;align-items:center;gap:6px;">${adminVehicleIcon(v.icon, 20)} ${v.name || '-'}</span></td>
                     <td>${(v.fuel_type || 'diesel').charAt(0).toUpperCase() + (v.fuel_type || 'diesel').slice(1)}</td>
                     <td>${v.tank_capacity || 0}L</td>
                     <td>${v.created_at ? v.created_at.split('T')[0] : '-'}</td>
@@ -2576,7 +2576,26 @@
         let fleetRefreshInterval = null;
         let directionsService = null;
 
-        // Tanker SVG icon for active deliveries
+        // ─── Branded Vehicle Icon Helpers (Admin) ─────
+        function adminVehicleIcon(type, size = 20, color = '#2E3192') {
+            const paths = {
+                sedan: `<path d="M5 16h1a2 2 0 1 0 4 0h4a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1v-3a1 1 0 0 0-.2-.6l-2.3-3.1A2 2 0 0 0 16 7H8a2 2 0 0 0-1.5.7L4.2 11a1 1 0 0 0-.2.6V15a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="16" r="1.5" fill="${color}"/><circle cx="16" cy="16" r="1.5" fill="${color}"/>`,
+                suv: `<path d="M4 16h1a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-.3-.7l-2.2-2.5A2 2 0 0 0 17 7H7a2 2 0 0 0-1.5.8L3.3 10.3A1 1 0 0 0 3 11v4a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="${color}"/><circle cx="17" cy="16" r="1.5" fill="${color}"/><rect x="6" y="9" width="12" height="3" rx="1" fill="${color}" opacity="0.12"/>`,
+                pickup: `<path d="M3 15h1a2 2 0 1 0 4 0h8a2 2 0 1 0 4 0h1v-3l-2-3h-4V6H6a1 1 0 0 0-1 1v2H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="15" r="1.5" fill="${color}"/><circle cx="18" cy="15" r="1.5" fill="${color}"/>`,
+                van: `<path d="M4 16h1a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1V8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="${color}"/><circle cx="17" cy="16" r="1.5" fill="${color}"/><path d="M14 6v10" stroke="${color}" stroke-width="1" opacity="0.25"/>`,
+                truck: `<path d="M3 15h1a2 2 0 1 0 4 0h4a2 2 0 1 0 4 0h2a2 2 0 1 0 0 0h1V8a1 1 0 0 0-1-1h-4l-2-3H7a2 2 0 0 0-2 2v2H3a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="15" r="1.5" fill="${color}"/><circle cx="14" cy="15" r="1.5" fill="${color}"/><circle cx="18" cy="15" r="1.5" fill="${color}"/>`,
+                heavy: `<path d="M2 14h1a2 2 0 1 0 4 0h2a2 2 0 1 0 4 0h2a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a2 2 0 0 0-2 2v1H2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="14" r="1.5" fill="${color}"/><circle cx="11" cy="14" r="1.5" fill="${color}"/><circle cx="17" cy="14" r="1.5" fill="${color}"/>`,
+            };
+            const emojiMap = { '🚗': 'sedan', '🚙': 'suv', '🛻': 'pickup', '🚐': 'van', '🚛': 'truck', '🚜': 'heavy' };
+            const key = emojiMap[type] || (['sedan','suv','pickup','van','truck','heavy'].includes(type) ? type : 'sedan');
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 20" fill="none">${paths[key]}</svg>`;
+        }
+
+        function adminTankerIcon(size = 18, color = '#00BFFF') {
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 20"><ellipse cx="12" cy="9" rx="8" ry="5" fill="${color}" opacity="0.15"/><rect x="5" y="5" width="14" height="9" rx="4.5" fill="none" stroke="${color}" stroke-width="1.5"/><rect x="3" y="8" width="3" height="4" rx="1" fill="none" stroke="${color}" stroke-width="1.2"/><circle cx="7" cy="16" r="1.5" fill="${color}"/><circle cx="17" cy="16" r="1.5" fill="${color}"/></svg>`;
+        }
+
+        // Tanker SVG icon for active deliveries on map
         function makeTankerSVG(heading, isActive) {
             const color = isActive ? '#00BFFF' : '#2E3192';
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
@@ -2836,7 +2855,7 @@
             }
 
             list.innerHTML = data.notifications.map(n => {
-                const iconMap = { new_order: '📦', dispatch: '🚛', status_update: '📍', completed: '✅', info: 'ℹ️' };
+                const iconMap = { new_order: '📦', dispatch: adminTankerIcon(16), status_update: '📍', completed: '✅', info: 'ℹ️' };
                 const icon = iconMap[n.type] || 'ℹ️';
                 const timeAgo = getTimeAgo(n.created_at);
                 return `

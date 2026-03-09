@@ -9,6 +9,46 @@ let ws = null;
 let activeTab = 'home';
 let trackingInterval = null;
 
+// ─── Branded Vehicle Icon System ─────────────────────
+// Returns an inline SVG string for the given vehicle type key.
+// size = pixel dimension of the square icon
+function vehicleIcon(type, size = 28, color = '#2E3192') {
+  const paths = {
+    sedan: `<path d="M5 16h1a2 2 0 1 0 4 0h4a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1v-3a1 1 0 0 0-.2-.6l-2.3-3.1A2 2 0 0 0 16 7H8a2 2 0 0 0-1.5.7L4.2 11a1 1 0 0 0-.2.6V15a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="16" r="1.5" fill="${color}"/><circle cx="16" cy="16" r="1.5" fill="${color}"/><path d="M6.5 11h11" stroke="${color}" stroke-width="1" opacity="0.4"/>`,
+    suv: `<path d="M4 16h1a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-.3-.7l-2.2-2.5A2 2 0 0 0 17 7H7a2 2 0 0 0-1.5.8L3.3 10.3A1 1 0 0 0 3 11v4a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="${color}"/><circle cx="17" cy="16" r="1.5" fill="${color}"/><rect x="6" y="9" width="12" height="3" rx="1" fill="${color}" opacity="0.12"/>`,
+    pickup: `<path d="M3 15h1a2 2 0 1 0 4 0h8a2 2 0 1 0 4 0h1v-3l-2-3h-4V6H6a1 1 0 0 0-1 1v2H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="15" r="1.5" fill="${color}"/><circle cx="18" cy="15" r="1.5" fill="${color}"/><path d="M15 6v6" stroke="${color}" stroke-width="1" opacity="0.3"/>`,
+    van: `<path d="M4 16h1a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1V8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="${color}"/><circle cx="17" cy="16" r="1.5" fill="${color}"/><path d="M14 6v10" stroke="${color}" stroke-width="1" opacity="0.25"/><rect x="15" y="8" width="4" height="4" rx="1" fill="${color}" opacity="0.12"/>`,
+    truck: `<path d="M3 15h1a2 2 0 1 0 4 0h4a2 2 0 1 0 4 0h2a2 2 0 1 0 0 0h1V8a1 1 0 0 0-1-1h-4l-2-3H7a2 2 0 0 0-2 2v2H3a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="15" r="1.5" fill="${color}"/><circle cx="14" cy="15" r="1.5" fill="${color}"/><circle cx="18" cy="15" r="1.5" fill="${color}"/><rect x="3" y="7" width="9" height="5" rx="1" fill="${color}" opacity="0.08"/>`,
+    heavy: `<path d="M2 14h1a2 2 0 1 0 4 0h2a2 2 0 1 0 4 0h2a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a2 2 0 0 0-2 2v1H2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1z" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="14" r="1.5" fill="${color}"/><circle cx="11" cy="14" r="1.5" fill="${color}"/><circle cx="17" cy="14" r="1.5" fill="${color}"/><rect x="4" y="6" width="14" height="4" rx="1" fill="${color}" opacity="0.1"/>`,
+  };
+  const svgInner = paths[type] || paths['sedan'];
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 20" fill="none">${svgInner}</svg>`;
+}
+
+// Returns a styled container div with the vehicle icon inside (for cards etc)
+function vehicleIconBox(type, boxSize = 52) {
+  const iconSize = Math.round(boxSize * 0.55);
+  return `<div style="width:${boxSize}px;height:${boxSize}px;border-radius:${Math.round(boxSize*0.27)}px;background:linear-gradient(135deg,rgba(46,49,146,0.06),rgba(0,191,255,0.10));display:flex;align-items:center;justify-content:center;">${vehicleIcon(type, iconSize)}</div>`;
+}
+
+// Maps legacy emoji icons to new type keys
+function normalizeVehicleIcon(icon) {
+  if (!icon) return 'sedan';
+  const map = { '🚗': 'sedan', '🚙': 'suv', '🛻': 'pickup', '🚐': 'van', '🚛': 'truck', '🚜': 'heavy' };
+  return map[icon] || (['sedan','suv','pickup','van','truck','heavy'].includes(icon) ? icon : 'sedan');
+}
+
+// Branded tanker icon for delivery tracking
+function tankerIcon(size = 28, color = '#00BFFF') {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 20">
+    <ellipse cx="12" cy="9" rx="8" ry="5" fill="${color}" opacity="0.15"/>
+    <rect x="5" y="5" width="14" height="9" rx="4.5" fill="none" stroke="${color}" stroke-width="1.5"/>
+    <rect x="3" y="8" width="3" height="4" rx="1" fill="none" stroke="${color}" stroke-width="1.2"/>
+    <circle cx="7" cy="16" r="1.5" fill="${color}"/><circle cx="17" cy="16" r="1.5" fill="${color}"/>
+    <path d="M4 14h16" stroke="${color}" stroke-width="1" opacity="0.3"/>
+  </svg>`;
+}
+
 // ─── API Helper ──────────────────────────────────────
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
@@ -222,8 +262,8 @@ async function renderHome(app) {
               <p style="color:#fff; font-size:16px; font-weight:700; margin:4px 0 2px;">${activeOrder.fuel_type} — ${activeOrder.volume}L</p>
               <p style="color:rgba(255,255,255,0.6); font-size:12px;">ETA: ${activeOrder.eta_minutes || '—'} minutes</p>
             </div>
-            <div style="width:52px; height:52px; border-radius:26px; background:rgba(0,191,255,0.2); display:flex; align-items:center; justify-content:center;">
-              <span style="font-size:26px;">🚛</span>
+            <div style="width:52px; height:52px; border-radius:26px; background:rgba(0,191,255,0.15); display:flex; align-items:center; justify-content:center;">
+              ${tankerIcon(30, '#00BFFF')}
             </div>
           </div>
           <div style="margin-top:12px; background:rgba(255,255,255,0.1); border-radius:8px; height:6px; overflow:hidden;">
@@ -234,13 +274,13 @@ async function renderHome(app) {
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
           ${[
-            { icon: '⛽', label: 'Order Fuel', desc: 'Get fuel delivered', tab: 'schedule' },
-            { icon: '📅', label: 'Schedule', desc: 'Plan ahead', tab: 'schedule' },
-            { icon: '🚗', label: 'Vehicles', desc: 'Manage fleet', tab: 'vehicles' },
-            { icon: '📍', label: 'Track', desc: 'Live status', tab: 'tracking' },
+            { svg: tankerIcon(32,'#2E3192'), label: 'Order Fuel', desc: 'Get fuel delivered', tab: 'schedule' },
+            { svg: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2E3192" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" stroke-linecap="round"/></svg>', label: 'Schedule', desc: 'Plan ahead', tab: 'schedule' },
+            { svg: vehicleIcon('suv', 32, '#2E3192'), label: 'Vehicles', desc: 'Manage fleet', tab: 'vehicles' },
+            { svg: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2E3192" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3" fill="#00BFFF" fill-opacity="0.3"/></svg>', label: 'Track', desc: 'Live status', tab: 'tracking' },
           ].map(a => `
             <div class="card" style="text-align:center; padding:20px 12px; cursor:pointer;" onclick="navigateTo('${a.tab}')">
-              <div style="font-size:32px; margin-bottom:8px;">${a.icon}</div>
+              <div style="margin-bottom:8px; display:flex; justify-content:center;">${a.svg}</div>
               <p style="font-weight:600; font-size:14px; color:var(--royal); margin-bottom:2px;">${a.label}</p>
               <p style="font-size:11px; color:var(--grey);">${a.desc}</p>
             </div>
@@ -367,7 +407,7 @@ async function renderSchedule(app) {
           <h3 style="font-size:16px; font-weight:700; color:var(--royal); margin:16px 0 12px;">Select Vehicle</h3>
           ${vehicles.map(v => `
             <div class="card" style="margin-bottom:10px; display:flex; align-items:center; gap:12px; cursor:pointer; border:2px solid ${s.vehicleId === v.id ? 'var(--sky)' : 'transparent'};" onclick="scheduleState.vehicleId='${v.id}'; renderSchedule(document.getElementById('app'));">
-              <span style="font-size:28px;">${v.icon}</span>
+              ${vehicleIconBox(normalizeVehicleIcon(v.icon), 42)}
               <div style="flex:1;">
                 <p style="font-weight:600; font-size:14px; color:var(--royal);">${v.name} — ${v.plate}</p>
                 <p style="font-size:12px; color:var(--grey);">${v.fuel_type} · ${v.tank_capacity}L tank</p>
@@ -471,7 +511,7 @@ async function renderVehicles(app) {
       <div class="scroll-content animate-in">
         ${vehicles.map(v => `
           <div class="card" style="margin-bottom:12px; display:flex; gap:14px; align-items:center;">
-            <div style="width:52px; height:52px; border-radius:14px; background:var(--off-white); display:flex; align-items:center; justify-content:center; font-size:28px;">${v.icon}</div>
+            ${vehicleIconBox(normalizeVehicleIcon(v.icon), 52)}
             <div style="flex:1;">
               <p style="font-weight:600; font-size:15px; color:var(--royal);">${v.name}</p>
               <p style="font-size:12px; color:var(--grey);">${v.plate} · ${v.fuel_type} · ${v.tank_capacity}L tank</p>
@@ -490,6 +530,17 @@ async function renderVehicles(app) {
             <select id="vFuel"><option value="diesel">Diesel</option><option value="petrol">Petrol</option><option value="premium">Premium</option></select>
           </div>
           <div class="input-group"><label>Tank Capacity (L)</label><input id="vTank" type="number" value="80"></div>
+          <div class="input-group">
+            <label>Vehicle Type</label>
+            <div style="display:flex; gap:8px; margin-top:4px;" id="vehicleTypeSelector">
+              ${['sedan','suv','pickup','van','truck','heavy'].map(t => `
+                <div class="vtype-btn" data-type="${t}" onclick="document.querySelectorAll('.vtype-btn').forEach(b=>b.style.borderColor='var(--off-white)');this.style.borderColor='var(--sky)';this.dataset.selected='true';" style="cursor:pointer; padding:8px; border-radius:12px; border:2px solid var(--off-white); background:#fff; display:flex; flex-direction:column; align-items:center; gap:4px; flex:1;">
+                  ${vehicleIcon(t, 22)}
+                  <span style="font-size:9px; font-weight:600; color:var(--grey);">${t.charAt(0).toUpperCase()+t.slice(1)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
           <div style="display:flex; gap:10px;">
             <button class="btn btn-outline btn-full" onclick="document.getElementById('addVehicleForm').style.display='none';">Cancel</button>
             <button class="btn btn-primary btn-full" onclick="addVehicle()">Save</button>
@@ -503,13 +554,16 @@ async function renderVehicles(app) {
 }
 
 async function addVehicle() {
+  const selectedType = document.querySelector('.vtype-btn[data-selected="true"]');
+  const icon = selectedType ? selectedType.dataset.type : 'sedan';
   const v = await api('/vehicles', {
     method: 'POST',
     body: JSON.stringify({
       name: document.getElementById('vName').value,
       plate: document.getElementById('vPlate').value,
       fuel_type: document.getElementById('vFuel').value,
-      tank_capacity: +document.getElementById('vTank').value
+      tank_capacity: +document.getElementById('vTank').value,
+      icon: icon
     })
   });
   if (v) { showToast('Vehicle added!', 'success'); renderVehicles(document.getElementById('app')); }
@@ -656,7 +710,7 @@ function renderTrackingUI(app, data) {
             <g id="driverMarker" filter="url(#glow)">
               <circle id="driverPulse" cx="${dx}" cy="${dy}" r="14" fill="#00BFFF" opacity="0.2"><animate attributeName="r" values="14;22;14" dur="1.5s" repeatCount="indefinite"/></circle>
               <circle id="driverDot" cx="${dx}" cy="${dy}" r="8" fill="#2E3192" stroke="#fff" stroke-width="2.5"/>
-              <text id="driverIcon" x="${dx}" y="${dy+3}" text-anchor="middle" font-size="8" fill="#fff">🚛</text>
+              <text id="driverIcon" x="${dx}" y="${dy+3}" text-anchor="middle" font-size="8" fill="#fff">B</text>
             </g>
             <g id="etaBadge" filter="url(#shadow)">
               <rect x="${dx+14}" y="${dy-22}" width="48" height="20" rx="10" fill="#2E3192"/>
@@ -779,7 +833,7 @@ async function renderProfile(app) {
           ${notifs.slice(0,3).map(n => `
             <div class="card" style="margin-bottom:8px; display:flex; align-items:center; gap:12px; padding:12px; opacity:${n.read ? '0.6' : '1'};">
               <div style="width:36px; height:36px; border-radius:18px; background:${n.type === 'success' ? 'rgba(46,204,113,0.1)' : n.type === 'delivery' ? 'rgba(0,191,255,0.1)' : 'rgba(46,49,146,0.1)'}; display:flex; align-items:center; justify-content:center;">
-                <span style="font-size:16px;">${n.type === 'success' ? '✅' : n.type === 'delivery' ? '🚛' : 'ℹ️'}</span>
+                ${n.type === 'delivery' ? tankerIcon(18, '#00BFFF') : `<span style="font-size:16px;">${n.type === 'success' ? '✅' : 'ℹ️'}</span>`}
               </div>
               <div style="flex:1;">
                 <p style="font-weight:600; font-size:13px; color:var(--royal);">${n.title}</p>

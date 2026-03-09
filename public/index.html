@@ -1166,7 +1166,7 @@
             <div class="quick-action-desc">Plan ahead</div>
           </div>
           <div class="quick-action" onclick="switchTab('vehiclesScreen')">
-            <div class="quick-action-icon">🚗</div>
+            <div class="quick-action-icon"><svg width="32" height="32" viewBox="0 0 24 20" fill="none"><path d="M4 16h1a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-.3-.7l-2.2-2.5A2 2 0 0 0 17 7H7a2 2 0 0 0-1.5.8L3.3 10.3A1 1 0 0 0 3 11v4a1 1 0 0 0 1 1z" stroke="#2E3192" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="#2E3192"/><circle cx="17" cy="16" r="1.5" fill="#2E3192"/><rect x="6" y="9" width="12" height="3" rx="1" fill="#2E3192" opacity="0.12"/></svg></div>
             <div class="quick-action-title">Vehicles</div>
             <div class="quick-action-desc">Manage fleet</div>
           </div>
@@ -1410,7 +1410,7 @@
         <div>Order</div>
       </button>
       <button class="nav-item" data-tab="vehiclesScreen" onclick="switchTab('vehiclesScreen')">
-        <div class="nav-icon">🚗</div>
+        <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 20" fill="none"><path d="M4 16h1a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-.3-.7l-2.2-2.5A2 2 0 0 0 17 7H7a2 2 0 0 0-1.5.8L3.3 10.3A1 1 0 0 0 3 11v4a1 1 0 0 0 1 1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="currentColor"/><circle cx="17" cy="16" r="1.5" fill="currentColor"/></svg></div>
         <div>Vehicles</div>
       </button>
       <button class="nav-item" data-tab="trackingScreen" onclick="switchTab('trackingScreen')">
@@ -1773,7 +1773,7 @@
       renderVehiclesList() {
         const container = document.getElementById('vehiclesList');
         if (this.vehicles.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-icon">🚗</div><div class="empty-title">No vehicles</div><div class="empty-desc">Add your first vehicle to get started</div></div>';
+          container.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 20" fill="none"><path d="M4 16h1a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-.3-.7l-2.2-2.5A2 2 0 0 0 17 7H7a2 2 0 0 0-1.5.8L3.3 10.3A1 1 0 0 0 3 11v4a1 1 0 0 0 1 1z" stroke="#2E3192" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.5" fill="#2E3192"/><circle cx="17" cy="16" r="1.5" fill="#2E3192"/></svg></div><div class="empty-title">No vehicles</div><div class="empty-desc">Add your first vehicle to get started</div></div>';
           return;
         }
         container.innerHTML = this.vehicles.map(vehicle => `
@@ -1783,7 +1783,7 @@
                 <h3 style="font-weight: 600; color: var(--royal);">${vehicle.name}</h3>
                 <p style="font-size: 12px; color: var(--grey);">${vehicle.plate}</p>
               </div>
-              <span style="font-size: 28px;">${vehicle.icon || '🚗'}</span>
+              ${typeof vehicleIconBox === 'function' ? vehicleIconBox(normalizeVehicleIcon(vehicle.icon), 44) : `<span style="font-size:28px;">${vehicleIcon ? vehicleIcon(normalizeVehicleIcon(vehicle.icon), 28) : ''}</span>`}
             </div>
             <div style="font-size: 13px; color: var(--grey);">
               ${vehicle.fuel_type} • ${vehicle.tank_capacity}L tank
@@ -2111,7 +2111,7 @@
           list.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--grey)"><div style="font-size:48px;margin-bottom:12px">🔔</div><div style="font-weight:600;font-size:16px">No notifications yet</div><div style="font-size:13px;margin-top:4px">Order updates will appear here</div></div>';
           return;
         }
-        const iconMap = { order: '📦', delivery: '🚛', success: '✅', info: 'ℹ️' };
+        const iconMap = { order: '📦', delivery: typeof tankerIcon === 'function' ? tankerIcon(18,'#00BFFF') : '🚛', success: '✅', info: 'ℹ️' };
         list.innerHTML = notifs.map(n => {
           const icon = iconMap[n.type] || '🔔';
           const time = timeAgoWeb(n.created_at);
