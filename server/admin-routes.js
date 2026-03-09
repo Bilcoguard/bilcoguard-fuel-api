@@ -258,44 +258,71 @@ router.get('/vehicles', adminAuth, (req, res) => {
   res.json(vehicles);
 });
 
-// Vehicle locations with GPS data for fleet tracker
+// Vehicle locations with REAL GPS data for fleet tracker
 router.get('/vehicles/locations', adminAuth, (req, res) => {
   const vehicles = db.prepare(`
-    SELECT v.id, v.name, v.plate, d.name as driver_name,
-           COALESCE(o.status, 'idle') as status
+    SELECT v.id, v.name, v.plate, d.id as driver_id, d.name as driver_name, d.phone as driver_phone,
+           o.id as order_id, o.order_number, o.status as order_status, o.fuel_type, o.volume,
+           o.total, o.progress, o.eta_minutes,
+           l.name as location_name, l.address as location_address, l.lat as dest_lat, l.lng as dest_lng,
+           u.name as customer_name, u.phone as customer_phone
     FROM vehicles v
     LEFT JOIN drivers d ON v.id = d.vehicle_id
     LEFT JOIN orders o ON d.id = o.driver_id AND o.status IN ('en_route', 'arriving', 'fueling', 'driver_assigned')
+    LEFT JOIN locations l ON o.location_id = l.id
+    LEFT JOIN users u ON o.user_id = u.id
   `).all();
 
-  // Generate mock GPS locations around Lusaka, Zambia
-  const lusaka = { lat: -15.4167, lng: 28.2833 };
-  const radius = 0.15; // ~15km radius
+  const locations = vehicles.map(v => {
+    const isActive = v.order_status && ['en_route', 'arriving', 'fueling', 'driver_assigned'].includes(v.order_status);
+    let lat = null, lng = null, heading = 0, speed = 0, updatedAt = null;
 
-  const locations = vehicles.map((v, idx) => {
-    // Pseudo-random but consistent location based on vehicle id
-    const seed = v.id.charCodeAt(0) + v.id.charCodeAt(v.id.length - 1);
-    const angle = (seed * 137.5) % 360; // Golden angle for distribution
-    const distance = (seed % 100) / 100 * radius;
+    // Use REAL GPS from driver_locations table
+    if (v.driver_id) {
+      const loc = db.prepare('SELECT lat, lng, heading, speed, updated_at FROM driver_locations WHERE driver_id = ?').get(v.driver_id);
+      if (loc) {
+        lat = loc.lat;
+        lng = loc.lng;
+        heading = loc.heading;
+        speed = loc.speed;
+        updatedAt = loc.updated_at;
+      }
+    }
 
-    const lat = lusaka.lat + (distance * Math.cos(angle * Math.PI / 180));
-    const lng = lusaka.lng + (distance * Math.sin(angle * Math.PI / 180));
-
-    const isActive = v.status && v.status !== 'idle';
+    // Fallback for vehicles with no GPS data
+    if (lat == null) {
+      const lusaka = { lat: -15.4167, lng: 28.2833 };
+      const seed = v.id.charCodeAt(0) + v.id.charCodeAt(v.id.length - 1);
+      const angle = (seed * 137.5) % 360;
+      const dist = (seed % 100) / 100 * 0.15;
+      lat = lusaka.lat + (dist * Math.cos(angle * Math.PI / 180));
+      lng = lusaka.lng + (dist * Math.sin(angle * Math.PI / 180));
+    }
 
     return {
       id: v.id,
       name: v.name,
       plate: v.plate,
+      driver_id: v.driver_id,
       driver_name: v.driver_name,
-      status: isActive ? 'delivering' : 'idle',
-      lat: lat,
-      lng: lng,
-      // If on delivery, add destination
+      driver_phone: v.driver_phone,
+      status: isActive ? v.order_status : 'idle',
+      lat, lng, heading, speed,
+      updated_at: updatedAt,
       ...(isActive && {
-        destination_lat: lusaka.lat + (Math.random() - 0.5) * 0.2,
-        destination_lng: lusaka.lng + (Math.random() - 0.5) * 0.2,
-        route_progress: Math.floor(Math.random() * 80) + 10
+        order_id: v.order_id,
+        order_number: v.order_number,
+        fuel_type: v.fuel_type,
+        volume: v.volume,
+        total: v.total,
+        progress: v.progress,
+        eta_minutes: v.eta_minutes,
+        destination_lat: v.dest_lat,
+        destination_lng: v.dest_lng,
+        location_name: v.location_name,
+        location_address: v.location_address,
+        customer_name: v.customer_name,
+        customer_phone: v.customer_phone
       })
     };
   });
