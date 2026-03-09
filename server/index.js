@@ -18,8 +18,7 @@ app.use(express.json());
 
 // Config endpoint — serves runtime env vars to frontend
 app.get('/api/config/maps-key', (req, res) => {
-  const envKey = 'GOOGLE_MAPS' + '_KEY';
-  res.json({ key: process.env[envKey] || '' });
+  res.json({ key: process.env.GMAPS_TOKEN || '' });
 });
 
 // API routes
