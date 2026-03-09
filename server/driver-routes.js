@@ -264,18 +264,39 @@ router.put('/notifications/read-all', driverAuth, (req, res) => {
   res.json({ success: true });
 });
 
-// ─── LIVE LOCATION ──────────────────────────────────
-router.put('/location', driverAuth, (req, res) => {
+// ─── LIVE LOCATION (with Roads API snap-to-road) ──────
+router.put('/location', driverAuth, async (req, res) => {
   const { lat, lng, heading, speed } = req.body;
   if (lat == null || lng == null) return res.status(400).json({ error: 'lat and lng required' });
 
+  let snappedLat = lat;
+  let snappedLng = lng;
+
+  // Use Google Roads API to snap GPS to nearest road for accuracy
+  const GMAPS_KEY = process.env.GMAPS_TOKEN;
+  if (GMAPS_KEY) {
+    try {
+      const roadsUrl = `https://roads.googleapis.com/v1/nearestRoads?points=${lat},${lng}&key=${GMAPS_KEY}`;
+      const roadsRes = await fetch(roadsUrl);
+      const roadsData = await roadsRes.json();
+      if (roadsData.snappedPoints && roadsData.snappedPoints.length > 0) {
+        snappedLat = roadsData.snappedPoints[0].location.latitude;
+        snappedLng = roadsData.snappedPoints[0].location.longitude;
+      }
+    } catch (e) {
+      // Fall back to raw GPS if Roads API fails
+      console.error('Roads API snap failed:', e.message);
+    }
+  }
+
+  // Store both raw and snapped coordinates
   db.prepare(`
     INSERT INTO driver_locations (driver_id, lat, lng, heading, speed, updated_at)
     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(driver_id) DO UPDATE SET lat=excluded.lat, lng=excluded.lng, heading=excluded.heading, speed=excluded.speed, updated_at=CURRENT_TIMESTAMP
-  `).run(req.driver.id, lat, lng, heading || 0, speed || 0);
+  `).run(req.driver.id, snappedLat, snappedLng, heading || 0, speed || 0);
 
-  res.json({ success: true });
+  res.json({ success: true, snapped: snappedLat !== lat || snappedLng !== lng });
 });
 
 module.exports = router;

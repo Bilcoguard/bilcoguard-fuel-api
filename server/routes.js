@@ -322,8 +322,8 @@ router.get('/orders/:id/track', authMiddleware, (req, res) => {
   });
 });
 
-// ─── DRIVER LIVE LOCATION (for customer tracking) ─────
-router.get('/orders/:id/driver-location', authMiddleware, (req, res) => {
+// ─── DRIVER LIVE LOCATION (with Distance Matrix ETA) ─────
+router.get('/orders/:id/driver-location', authMiddleware, async (req, res) => {
   const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!order) return res.status(404).json({ error: 'Order not found' });
   if (!order.driver_id) return res.json({ driver_location: null });
@@ -334,13 +334,38 @@ router.get('/orders/:id/driver-location', authMiddleware, (req, res) => {
   // Get destination coordinates
   const dest = db.prepare('SELECT lat, lng FROM locations WHERE id = ?').get(order.location_id);
 
+  // Use Google Distance Matrix API for traffic-aware ETA
+  let etaMinutes = order.eta_minutes;
+  let distanceText = null;
+  const GMAPS_KEY = process.env.GMAPS_TOKEN;
+  if (GMAPS_KEY && dest) {
+    try {
+      const dmUrl = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${loc.lat},${loc.lng}&destinations=${dest.lat},${dest.lng}&departure_time=now&traffic_model=best_guess&key=${GMAPS_KEY}`;
+      const dmRes = await fetch(dmUrl);
+      const dmData = await dmRes.json();
+      if (dmData.rows && dmData.rows[0] && dmData.rows[0].elements[0].status === 'OK') {
+        const el = dmData.rows[0].elements[0];
+        // Use duration_in_traffic if available, otherwise regular duration
+        const duration = el.duration_in_traffic || el.duration;
+        etaMinutes = Math.ceil(duration.value / 60);
+        distanceText = el.distance.text;
+
+        // Update the order's ETA with real traffic data
+        db.prepare('UPDATE orders SET eta_minutes = ? WHERE id = ?').run(etaMinutes, order.id);
+      }
+    } catch (e) {
+      console.error('Distance Matrix API failed:', e.message);
+    }
+  }
+
   res.json({
     driver_location: { lat: loc.lat, lng: loc.lng, heading: loc.heading, speed: loc.speed },
     destination: dest ? { lat: dest.lat, lng: dest.lng } : null,
     updated_at: loc.updated_at,
     driver_name: order.driver_name,
     status: order.status,
-    eta_minutes: order.eta_minutes
+    eta_minutes: etaMinutes,
+    distance_text: distanceText
   });
 });
 
