@@ -1,0 +1,2038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Bilcoguard Fuel Delivery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --royal: #2E3192;
+      --sky: #00BFFF;
+      --grey: #A7A8AB;
+      --off-white: #F1F1F1;
+      --dark: #1a1d6e;
+      --success: #2ecc71;
+      --warning: #f39c12;
+      --danger: #e74c3c;
+      --white: #ffffff;
+      --text-dark: #333;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--off-white);
+      color: var(--text-dark);
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* App Container — always looks like a phone */
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      width: 100%;
+      max-width: 430px;
+      margin: 0 auto;
+      overflow: hidden;
+      position: relative;
+      background: var(--off-white);
+      box-shadow: 0 0 40px rgba(0,0,0,0.12);
+    }
+
+    /* Desktop background behind the phone frame */
+    @media (min-width: 431px) {
+      html, body {
+        background: linear-gradient(135deg, var(--royal) 0%, #1a1d6e 50%, var(--sky) 100%);
+      }
+      .app-container {
+        border-radius: 24px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        height: calc(100vh - 40px);
+        height: calc(100dvh - 40px);
+        border: 1px solid rgba(0,0,0,0.08);
+      }
+    }
+
+    .screen-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      display: none;
+    }
+
+    .screen-wrapper.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 20px;
+      background: var(--royal);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    /* Bottom Navigation */
+    .bottom-nav {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0 20px;
+      background: white;
+      border-top: 1px solid var(--off-white);
+      flex-shrink: 0;
+      z-index: 50;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 12px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--grey);
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .nav-item.active {
+      color: var(--sky);
+      font-weight: 600;
+    }
+
+    .nav-icon {
+      font-size: 24px;
+      display: inline-block;
+    }
+
+    /* Header Section */
+    .header {
+      background: linear-gradient(135deg, var(--royal), var(--dark));
+      color: white;
+      padding: 24px 20px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -20px;
+      right: -30px;
+      width: 150px;
+      height: 150px;
+      background: var(--sky);
+      opacity: 0.1;
+      transform: rotate(45deg);
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      left: -20px;
+      width: 100px;
+      height: 100px;
+      background: var(--sky);
+      opacity: 0.08;
+      transform: rotate(30deg);
+    }
+
+    .header-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      opacity: 0.8;
+      margin-bottom: 12px;
+    }
+
+    .header-tagline {
+      font-size: 13px;
+      color: var(--sky);
+      font-weight: 500;
+    }
+
+    /* Content Container */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 20px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .content-section {
+      margin-bottom: 24px;
+    }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 2px 12px rgba(46, 49, 146, 0.08);
+      border: 1px solid transparent;
+      transition: all 0.3s ease;
+      margin-bottom: 12px;
+    }
+
+    .card:hover {
+      box-shadow: 0 4px 20px rgba(46, 49, 146, 0.12);
+    }
+
+    .card.dark {
+      background: linear-gradient(135deg, var(--royal), var(--dark));
+      color: white;
+      border: none;
+    }
+
+    .card.hero-card {
+      padding: 32px 20px;
+      text-align: center;
+      background: linear-gradient(135deg, var(--sky), var(--royal));
+      color: white;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-block;
+      text-align: center;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-primary {
+      background: var(--sky);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .btn-royal {
+      background: var(--royal);
+      color: white;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--royal);
+      border: 2px solid var(--royal);
+    }
+
+    .btn-full {
+      width: 100%;
+    }
+
+    .btn-small {
+      padding: 10px 20px;
+      font-size: 13px;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Forms */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--royal);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--off-white);
+      border-radius: 12px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      color: var(--text-dark);
+      background: white;
+      transition: border-color 0.3s ease;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--sky);
+      box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.1);
+    }
+
+    .form-control::placeholder {
+      color: var(--grey);
+    }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .grid.col-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Section Header */
+    .section-header {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--royal);
+      margin-bottom: 16px;
+      margin-top: 12px;
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .hero h2 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--royal);
+    }
+
+    .hero p {
+      font-size: 16px;
+      color: var(--grey);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    /* Quick Actions Grid */
+    .quick-action {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      border: 1px solid var(--off-white);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 12px rgba(46, 49, 146, 0.08);
+    }
+
+    .quick-action:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(46, 49, 146, 0.15);
+    }
+
+    .quick-action-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+      display: inline-block;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, rgba(46, 49, 146, 0.1), rgba(0, 191, 255, 0.1));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .quick-action-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--royal);
+      margin-bottom: 4px;
+    }
+
+    .quick-action-desc {
+      font-size: 12px;
+      color: var(--grey);
+    }
+
+    /* Order Card */
+    .order-card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-left: 4px solid var(--sky);
+    }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+
+    .order-number {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--grey);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .order-status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .order-status.success {
+      background: rgba(46, 204, 113, 0.1);
+      color: var(--success);
+    }
+
+    .order-status.pending {
+      background: rgba(167, 168, 171, 0.1);
+      color: var(--grey);
+    }
+
+    .order-status.sky {
+      background: rgba(0, 191, 255, 0.1);
+      color: var(--sky);
+    }
+
+    .order-info {
+      margin-bottom: 8px;
+    }
+
+    .order-fuel {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--royal);
+      margin-bottom: 4px;
+    }
+
+    .order-details {
+      font-size: 12px;
+      color: var(--grey);
+    }
+
+    .order-total {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--royal);
+      margin-top: 8px;
+    }
+
+    /* Active Order Banner */
+    .active-order-banner {
+      background: linear-gradient(135deg, var(--royal), var(--dark));
+      color: white;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(46, 49, 146, 0.2);
+    }
+
+    .active-order-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--sky);
+      margin-bottom: 8px;
+    }
+
+    .active-order-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .active-order-eta {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-bottom: 12px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--sky);
+      transition: width 0.3s ease;
+      border-radius: 3px;
+    }
+
+    /* Step Indicator */
+    .step-indicator {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 24px;
+    }
+
+    .step {
+      flex: 1;
+      height: 4px;
+      background: var(--off-white);
+      border-radius: 2px;
+    }
+
+    .step.active {
+      background: var(--sky);
+    }
+
+    /* Price Display */
+    .price-section {
+      background: var(--off-white);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .price-row.total {
+      border-top: 2px solid var(--sky);
+      padding-top: 8px;
+      margin-top: 8px;
+      font-weight: 700;
+      color: var(--royal);
+      font-size: 16px;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      align-items: flex-end;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 20px 20px 0 0;
+      padding: 24px;
+      max-height: 90vh;
+      overflow-y: auto;
+      width: 100%;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(100%);
+      }
+      to {
+        transform: translateY(0);
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--royal);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      color: var(--grey);
+      cursor: pointer;
+      padding: 0;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Tabs */
+    .tab-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      padding: 12px 16px;
+      border: 2px solid var(--off-white);
+      background: white;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--royal);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn.active {
+      border-color: var(--sky);
+      background: rgba(0, 191, 255, 0.08);
+      color: var(--sky);
+    }
+
+    /* Radio/Checkbox options */
+    .option-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .option-item {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      background: white;
+      border: 2px solid var(--off-white);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .option-item:hover {
+      border-color: var(--sky);
+    }
+
+    .option-item.selected {
+      border-color: var(--sky);
+      background: rgba(0, 191, 255, 0.05);
+    }
+
+    .option-radio {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--grey);
+      border-radius: 50%;
+      margin-right: 12px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .option-item.selected .option-radio {
+      border-color: var(--sky);
+      background: var(--sky);
+    }
+
+    .option-radio::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: white;
+      border-radius: 50%;
+    }
+
+    .option-item.selected .option-radio::after {
+      content: '✓';
+      width: auto;
+      height: auto;
+      font-size: 12px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .option-content {
+      flex: 1;
+    }
+
+    .option-label {
+      font-weight: 600;
+      color: var(--royal);
+      margin-bottom: 2px;
+    }
+
+    .option-desc {
+      font-size: 12px;
+      color: var(--grey);
+    }
+
+    /* Volume Selector */
+    .volume-selector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .volume-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--grey);
+      background: white;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--royal);
+      transition: all 0.3s ease;
+    }
+
+    .volume-btn:hover {
+      border-color: var(--sky);
+    }
+
+    .volume-btn.add {
+      border-color: var(--sky);
+      background: var(--sky);
+      color: white;
+    }
+
+    .volume-display {
+      text-align: center;
+    }
+
+    .volume-number {
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--royal);
+    }
+
+    .volume-unit {
+      font-size: 12px;
+      color: var(--grey);
+    }
+
+    /* Range Slider */
+    .range-input {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--off-white);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 16px 0;
+    }
+
+    .range-input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--sky);
+      cursor: pointer;
+      border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0, 191, 255, 0.3);
+    }
+
+    .range-input::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--sky);
+      cursor: pointer;
+      border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0, 191, 255, 0.3);
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--royal);
+      margin-bottom: 8px;
+    }
+
+    .empty-desc {
+      font-size: 14px;
+      color: var(--grey);
+      margin-bottom: 24px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 20px;
+      right: 20px;
+      background: var(--royal);
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 300;
+      animation: slideUp 0.3s ease-out;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .toast.success {
+      background: var(--success);
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    /* Loading Spinner */
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--off-white);
+      border-top-color: var(--sky);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Map */
+    #liveMap {
+      width: 100%;
+      height: 300px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 20px rgba(46, 49, 146, 0.12);
+    }
+
+    .live-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(46, 49, 146, 0.85);
+      backdrop-filter: blur(8px);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 10;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .header {
+        padding: 20px 16px;
+      }
+
+      .content {
+        padding: 16px;
+      }
+
+      .hero h2 {
+        font-size: 28px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .grid.col-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Authentication Screen */
+    .auth-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--off-white);
+    }
+
+    .auth-header {
+      background: linear-gradient(135deg, var(--royal), var(--dark));
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    .auth-logo {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .auth-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .auth-subtitle {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .auth-form {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .auth-inputs {
+      flex: 1;
+      margin-bottom: 20px;
+    }
+
+    .auth-toggle {
+      text-align: center;
+      font-size: 14px;
+      color: var(--grey);
+      margin-bottom: 20px;
+    }
+
+    .auth-toggle button {
+      background: none;
+      border: none;
+      color: var(--sky);
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    /* Driver Info Card */
+    .driver-card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .driver-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--royal), var(--sky));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+
+    .driver-info {
+      flex: 1;
+    }
+
+    .driver-name {
+      font-weight: 600;
+      color: var(--royal);
+      margin-bottom: 4px;
+    }
+
+    .driver-phone {
+      font-size: 13px;
+      color: var(--grey);
+    }
+
+    .driver-rating {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--warning);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span id="timeDisplay">9:41</span>
+      <span>Bilcoguard Fuel</span>
+      <span>🔋</span>
+    </div>
+
+    <!-- Auth Screen -->
+    <div id="authScreen" class="screen-wrapper active">
+      <div class="auth-container">
+        <div class="auth-header">
+          <div class="auth-logo">⛽</div>
+          <div class="auth-title">Bilcoguard Fuel</div>
+          <div class="auth-subtitle">Fuel delivered to your doorstep</div>
+        </div>
+
+        <form class="auth-form" id="authForm">
+          <div class="auth-inputs">
+            <h2 class="section-header" id="authFormTitle">Sign In</h2>
+
+            <!-- Login Inputs -->
+            <div id="loginInputs">
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" id="loginEmail" class="form-control" placeholder="your@email.com" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required>
+              </div>
+            </div>
+
+            <!-- Register Inputs (hidden) -->
+            <div id="registerInputs" style="display:none;">
+              <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" id="registerName" class="form-control" placeholder="Your full name">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" id="registerEmail" class="form-control" placeholder="your@email.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="tel" id="registerPhone" class="form-control" placeholder="+260...">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" id="registerPassword" class="form-control" placeholder="••••••••">
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full" id="authSubmitBtn">Sign In</button>
+
+          <div class="auth-toggle">
+            <span id="authToggleText">Don't have an account?</span>
+            <button type="button" id="authToggleBtn">Sign Up</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Home Screen -->
+    <div id="homeScreen" class="screen-wrapper">
+      <div class="header">
+        <div class="header-content">
+          <h1 id="welcomeName">Welcome back</h1>
+          <div class="header-subtitle">Peter</div>
+          <div class="header-tagline">Bilcoguard Fuel Delivery</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <!-- Active Order Banner -->
+        <div id="activeOrderBanner" style="display:none;" class="active-order-banner">
+          <div class="active-order-label">ACTIVE DELIVERY</div>
+          <div class="active-order-title" id="activeOrderFuel">Diesel — 100L</div>
+          <div class="active-order-eta" id="activeOrderEta">ETA: 15 minutes</div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="activeOrderProgress" style="width: 45%;"></div>
+          </div>
+        </div>
+
+        <!-- Quick Actions Grid -->
+        <div class="grid">
+          <div class="quick-action" onclick="switchTab('orderScreen')">
+            <div class="quick-action-icon">⛽</div>
+            <div class="quick-action-title">Order Fuel</div>
+            <div class="quick-action-desc">Get fuel delivered</div>
+          </div>
+          <div class="quick-action" onclick="switchTab('orderScreen')">
+            <div class="quick-action-icon">📅</div>
+            <div class="quick-action-title">Schedule</div>
+            <div class="quick-action-desc">Plan ahead</div>
+          </div>
+          <div class="quick-action" onclick="switchTab('vehiclesScreen')">
+            <div class="quick-action-icon">🚗</div>
+            <div class="quick-action-title">Vehicles</div>
+            <div class="quick-action-desc">Manage fleet</div>
+          </div>
+          <div class="quick-action" onclick="switchTab('trackingScreen')">
+            <div class="quick-action-icon">📍</div>
+            <div class="quick-action-title">Track</div>
+            <div class="quick-action-desc">Live status</div>
+          </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="content-section">
+          <h3 class="section-header">Recent Orders</h3>
+          <div id="recentOrdersList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Screen (Ordering/Scheduling) -->
+    <div id="orderScreen" class="screen-wrapper">
+      <div class="header">
+        <div class="header-content">
+          <h1>Schedule Delivery</h1>
+          <div class="header-subtitle" id="orderStep">Step 1 of 3</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="step-indicator">
+          <div class="step active" id="step1Indicator"></div>
+          <div class="step" id="step2Indicator"></div>
+          <div class="step" id="step3Indicator"></div>
+        </div>
+
+        <!-- Step 1: Fuel Type & Volume -->
+        <div id="orderStep1" class="content-section">
+          <h3 class="section-header">Select Fuel Type</h3>
+          <div class="option-list" id="fuelTypeList"></div>
+
+          <h3 class="section-header" style="margin-top: 24px;">Volume (Litres)</h3>
+          <div class="volume-selector">
+            <button class="volume-btn" onclick="app.order.adjustVolume(-20)">−</button>
+            <div class="volume-display">
+              <div class="volume-number" id="volumeDisplay">100</div>
+              <div class="volume-unit">litres</div>
+            </div>
+            <button class="volume-btn add" onclick="app.order.adjustVolume(20)">+</button>
+          </div>
+
+          <input type="range" class="range-input" id="volumeSlider" min="20" max="500" step="10" value="100">
+
+          <div class="price-section">
+            <div class="price-row">
+              <span>Estimated Total</span>
+              <span id="estimatedTotal">K3,020</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-full" onclick="app.order.nextStep()">Continue</button>
+        </div>
+
+        <!-- Step 2: Location & Vehicle -->
+        <div id="orderStep2" class="content-section" style="display:none;">
+          <h3 class="section-header">Delivery Location</h3>
+          <div class="option-list" id="locationList"></div>
+
+          <h3 class="section-header" style="margin-top: 24px;">Select Vehicle</h3>
+          <div class="option-list" id="vehicleList"></div>
+
+          <div style="display: flex; gap: 10px; margin-top: 24px;">
+            <button class="btn btn-outline btn-full" onclick="app.order.prevStep()">Back</button>
+            <button class="btn btn-primary btn-full" onclick="app.order.nextStep()">Continue</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Date/Time & Confirm -->
+        <div id="orderStep3" class="content-section" style="display:none;">
+          <h3 class="section-header">Delivery Time</h3>
+
+          <div class="tab-buttons" id="dateButtons">
+            <button class="tab-btn active" data-date="today" onclick="app.order.selectDate(this)">Today</button>
+            <button class="tab-btn" data-date="tomorrow" onclick="app.order.selectDate(this)">Tomorrow</button>
+            <button class="tab-btn" data-date="later" onclick="app.order.selectDate(this)">Mar 10</button>
+          </div>
+
+          <div class="grid col-3" id="timeButtons"></div>
+
+          <div class="price-section" style="margin-top: 24px;">
+            <h4 style="font-weight: 700; color: var(--royal); margin-bottom: 12px;">Order Summary</h4>
+            <div class="price-row">
+              <span>Fuel</span>
+              <span id="summaryFuel">Diesel</span>
+            </div>
+            <div class="price-row">
+              <span>Volume</span>
+              <span id="summaryVolume">100L</span>
+            </div>
+            <div class="price-row">
+              <span>Price/L</span>
+              <span id="summaryPrice">K28.50</span>
+            </div>
+            <div class="price-row">
+              <span>Delivery</span>
+              <span id="summaryDelivery">Today at 14:00</span>
+            </div>
+            <div class="price-row total">
+              <span>Total</span>
+              <span id="summaryTotal">K2,850</span>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 24px;">
+            <button class="btn btn-outline btn-full" onclick="app.order.prevStep()">Back</button>
+            <button class="btn btn-primary btn-full" id="confirmOrderBtn" onclick="app.order.placeOrder()">Confirm Order</button>
+          </div>
+        </div>
+
+        <!-- Order Confirmation -->
+        <div id="orderConfirmation" class="content-section" style="display:none; text-align: center; padding: 60px 20px;">
+          <div style="font-size: 64px; margin-bottom: 16px;">✅</div>
+          <h2 style="font-size: 22px; font-weight: 700; color: var(--royal); margin-bottom: 8px;">Order Confirmed!</h2>
+          <p style="color: var(--grey); margin-bottom: 16px;" id="confirmMessage">Diesel — 100L</p>
+          <p style="font-size: 20px; font-weight: 700; color: var(--royal); margin-bottom: 8px;" id="confirmTotal">K2,850</p>
+          <p style="color: var(--grey); margin-bottom: 24px;" id="confirmDelivery">Delivery today at 14:00</p>
+
+          <button class="btn btn-primary btn-full" onclick="app.order.trackDelivery()">Track Delivery</button>
+          <button class="btn btn-outline btn-full" style="margin-top: 10px;" onclick="app.order.reset()">Place Another</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vehicles Screen -->
+    <div id="vehiclesScreen" class="screen-wrapper">
+      <div class="header">
+        <div class="header-content">
+          <h1>My Vehicles</h1>
+          <div class="header-subtitle">Manage your fleet</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div id="vehiclesList"></div>
+
+        <button class="btn btn-primary btn-full" style="margin-top: 24px;">Add Vehicle</button>
+      </div>
+    </div>
+
+    <!-- Tracking Screen -->
+    <div id="trackingScreen" class="screen-wrapper">
+      <div class="header">
+        <div class="header-content">
+          <h1>Track Order</h1>
+          <div class="header-subtitle">Live delivery status</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div id="trackingContent"></div>
+      </div>
+    </div>
+
+    <!-- Profile Screen -->
+    <div id="profileScreen" class="screen-wrapper">
+      <div class="header">
+        <div class="header-content">
+          <h1>Profile</h1>
+          <div class="header-subtitle">Your information</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="card">
+          <h3 class="section-header">Personal Information</h3>
+          <div class="form-group">
+            <label class="form-label">Name</label>
+            <input type="text" id="profileName" class="form-control" placeholder="Your name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" id="profileEmail" class="form-control" placeholder="your@email.com" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="tel" id="profilePhone" class="form-control" placeholder="+260...">
+          </div>
+
+          <button class="btn btn-primary btn-full" onclick="app.saveProfile()">Save Changes</button>
+        </div>
+
+        <div class="card" style="background: linear-gradient(135deg, var(--royal), var(--dark)); color: white; margin-top: 24px;">
+          <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Order Statistics</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div>
+              <div style="font-size: 24px; font-weight: 700;" id="statOrders">12</div>
+              <div style="font-size: 12px; opacity: 0.8;">Total Orders</div>
+            </div>
+            <div>
+              <div style="font-size: 24px; font-weight: 700;" id="statLitres">1,250</div>
+              <div style="font-size: 12px; opacity: 0.8;">Total Litres</div>
+            </div>
+            <div>
+              <div style="font-size: 24px; font-weight: 700;" id="statSpent">K45,000</div>
+              <div style="font-size: 12px; opacity: 0.8;">Total Spent</div>
+            </div>
+            <div>
+              <div style="font-size: 24px; font-weight: 700;" id="statDelivered">K41,250</div>
+              <div style="font-size: 12px; opacity: 0.8;">Delivered Value</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-outline btn-full" style="margin-top: 24px; color: var(--danger); border-color: var(--danger);" onclick="app.logout()">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+      <button class="nav-item active" data-tab="homeScreen" onclick="switchTab('homeScreen')">
+        <div class="nav-icon">⛽</div>
+        <div>Home</div>
+      </button>
+      <button class="nav-item" data-tab="orderScreen" onclick="switchTab('orderScreen')">
+        <div class="nav-icon">📅</div>
+        <div>Order</div>
+      </button>
+      <button class="nav-item" data-tab="vehiclesScreen" onclick="switchTab('vehiclesScreen')">
+        <div class="nav-icon">🚗</div>
+        <div>Vehicles</div>
+      </button>
+      <button class="nav-item" data-tab="trackingScreen" onclick="switchTab('trackingScreen')">
+        <div class="nav-icon">📍</div>
+        <div>Track</div>
+      </button>
+      <button class="nav-item" data-tab="profileScreen" onclick="switchTab('profileScreen')">
+        <div class="nav-icon">👤</div>
+        <div>Profile</div>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Global App State
+    const app = {
+      baseUrl: 'https://bilcoguard-fuel-api-production.up.railway.app/api',
+      token: localStorage.getItem('token'),
+      user: JSON.parse(localStorage.getItem('user') || 'null'),
+      isAuthMode: 'login',
+      prices: [],
+      vehicles: [],
+      locations: [],
+      orders: [],
+      order: {
+        step: 1,
+        fuelType: 'diesel',
+        volume: 100,
+        vehicleId: null,
+        locationId: null,
+        selectedDate: 'today',
+        selectedTime: '14:00',
+
+        adjustVolume(amount) {
+          this.volume = Math.max(20, Math.min(500, this.volume + amount));
+          this.updateVolumeDisplay();
+        },
+
+        updateVolumeDisplay() {
+          document.getElementById('volumeDisplay').textContent = this.volume;
+          document.getElementById('volumeSlider').value = this.volume;
+          this.updateEstimatedTotal();
+        },
+
+        updateEstimatedTotal() {
+          const fuel = app.prices.find(p => p.fuel_type === this.fuelType);
+          if (fuel) {
+            const total = fuel.price_per_litre * this.volume;
+            document.getElementById('estimatedTotal').textContent = `K${total.toFixed(0)}`;
+          }
+        },
+
+        nextStep() {
+          if (this.step === 1) {
+            this.step = 2;
+            document.getElementById('orderStep1').style.display = 'none';
+            document.getElementById('orderStep2').style.display = 'block';
+          } else if (this.step === 2) {
+            this.step = 3;
+            document.getElementById('orderStep2').style.display = 'none';
+            document.getElementById('orderStep3').style.display = 'block';
+            this.updateSummary();
+          }
+          this.updateStepIndicator();
+        },
+
+        prevStep() {
+          if (this.step === 2) {
+            this.step = 1;
+            document.getElementById('orderStep2').style.display = 'none';
+            document.getElementById('orderStep1').style.display = 'block';
+          } else if (this.step === 3) {
+            this.step = 2;
+            document.getElementById('orderStep3').style.display = 'none';
+            document.getElementById('orderStep2').style.display = 'block';
+          }
+          this.updateStepIndicator();
+        },
+
+        updateStepIndicator() {
+          document.getElementById('step1Indicator').classList.toggle('active', this.step >= 1);
+          document.getElementById('step2Indicator').classList.toggle('active', this.step >= 2);
+          document.getElementById('step3Indicator').classList.toggle('active', this.step >= 3);
+          document.getElementById('orderStep').textContent = `Step ${this.step} of 3`;
+        },
+
+        selectDate(btn) {
+          document.querySelectorAll('#dateButtons .tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          this.selectedDate = btn.dataset.date;
+        },
+
+        updateSummary() {
+          const fuel = app.prices.find(p => p.fuel_type === this.fuelType);
+          const total = fuel ? fuel.price_per_litre * this.volume : 0;
+
+          document.getElementById('summaryFuel').textContent = this.fuelType.charAt(0).toUpperCase() + this.fuelType.slice(1);
+          document.getElementById('summaryVolume').textContent = `${this.volume}L`;
+          document.getElementById('summaryPrice').textContent = `K${fuel?.price_per_litre.toFixed(2) || '0.00'}`;
+          document.getElementById('summaryDelivery').textContent = `${this.selectedDate} at ${this.selectedTime}`;
+          document.getElementById('summaryTotal').textContent = `K${total.toFixed(0)}`;
+        },
+
+        async placeOrder() {
+          const btn = document.getElementById('confirmOrderBtn');
+          btn.disabled = true;
+          btn.textContent = 'Placing...';
+
+          try {
+            const response = await fetch(`${app.baseUrl}/customer/orders`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${app.token}`
+              },
+              body: JSON.stringify({
+                vehicle_id: this.vehicleId,
+                location_id: this.locationId,
+                fuel_type: this.fuelType,
+                volume: this.volume,
+                delivery_date: this.getDeliveryDate(),
+                delivery_time: this.selectedTime
+              })
+            });
+
+            if (response.ok) {
+              const order = await response.json();
+              this.showConfirmation();
+              app.showToast('Order placed successfully!', 'success');
+              await app.loadOrders();
+            } else {
+              app.showToast('Failed to place order', 'error');
+            }
+          } catch (error) {
+            app.showToast('Error: ' + error.message, 'error');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Confirm Order';
+          }
+        },
+
+        getDeliveryDate() {
+          const today = new Date();
+          if (this.selectedDate === 'today') {
+            return today.toISOString().split('T')[0];
+          } else if (this.selectedDate === 'tomorrow') {
+            today.setDate(today.getDate() + 1);
+            return today.toISOString().split('T')[0];
+          } else {
+            today.setDate(today.getDate() + 2);
+            return today.toISOString().split('T')[0];
+          }
+        },
+
+        showConfirmation() {
+          const fuel = app.prices.find(p => p.fuel_type === this.fuelType);
+          const total = fuel ? fuel.price_per_litre * this.volume : 0;
+
+          document.getElementById('orderStep3').style.display = 'none';
+          document.getElementById('orderConfirmation').style.display = 'block';
+          document.getElementById('confirmMessage').textContent = `${this.fuelType.charAt(0).toUpperCase() + this.fuelType.slice(1)} — ${this.volume}L`;
+          document.getElementById('confirmTotal').textContent = `K${total.toFixed(0)}`;
+          document.getElementById('confirmDelivery').textContent = `Delivery ${this.selectedDate} at ${this.selectedTime}`;
+        },
+
+        trackDelivery() {
+          switchTab('trackingScreen');
+          app.order.reset();
+        },
+
+        reset() {
+          this.step = 1;
+          this.fuelType = 'diesel';
+          this.volume = 100;
+          this.selectedDate = 'today';
+          this.selectedTime = '14:00';
+          document.getElementById('orderConfirmation').style.display = 'none';
+          document.getElementById('orderStep1').style.display = 'block';
+          this.updateVolumeDisplay();
+          this.updateStepIndicator();
+        }
+      },
+
+      async init() {
+        this.updateTime();
+        setInterval(() => this.updateTime(), 1000);
+
+        if (this.token && this.user) {
+          this.showMainApp();
+          await this.loadData();
+        } else {
+          this.showAuthScreen();
+        }
+      },
+
+      updateTime() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('timeDisplay').textContent = `${hours}:${minutes}`;
+      },
+
+      showAuthScreen() {
+        document.getElementById('authScreen').classList.add('active');
+        document.querySelectorAll('.screen-wrapper').forEach(s => {
+          if (s !== document.getElementById('authScreen')) {
+            s.classList.remove('active');
+          }
+        });
+        document.querySelector('.bottom-nav').style.display = 'none';
+      },
+
+      showMainApp() {
+        document.getElementById('authScreen').classList.remove('active');
+        document.querySelector('.bottom-nav').style.display = 'flex';
+        switchTab('homeScreen');
+      },
+
+      async loadData() {
+        try {
+          const [prices, vehicles, locations, orders, profile] = await Promise.all([
+            this.fetchPrices(),
+            this.fetchVehicles(),
+            this.fetchLocations(),
+            this.loadOrders(),
+            this.fetchProfile()
+          ]);
+
+          this.prices = prices;
+          this.vehicles = vehicles;
+          this.locations = locations;
+          this.orders = orders;
+
+          this.renderFuelOptions();
+          this.renderVehicleOptions();
+          this.renderLocationOptions();
+          this.renderVehiclesList();
+          this.renderRecentOrders();
+          this.renderTimeButtons();
+          this.loadProfile();
+        } catch (error) {
+          console.error('Error loading data:', error);
+          this.showToast('Error loading data', 'error');
+        }
+      },
+
+      async fetchPrices() {
+        const response = await fetch(`${this.baseUrl}/prices`);
+        return response.json();
+      },
+
+      async fetchVehicles() {
+        const response = await fetch(`${this.baseUrl}/customer/vehicles`, {
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        return response.json();
+      },
+
+      async fetchLocations() {
+        const response = await fetch(`${this.baseUrl}/customer/locations`, {
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        return response.json();
+      },
+
+      async loadOrders() {
+        const response = await fetch(`${this.baseUrl}/customer/orders`, {
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        return response.json();
+      },
+
+      async fetchProfile() {
+        const response = await fetch(`${this.baseUrl}/customer/profile`, {
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        const data = await response.json();
+        return data;
+      },
+
+      renderFuelOptions() {
+        const container = document.getElementById('fuelTypeList');
+        container.innerHTML = this.prices.map(fuel => `
+          <div class="option-item ${this.order.fuelType === fuel.fuel_type ? 'selected' : ''}" onclick="app.selectFuel('${fuel.fuel_type}')">
+            <div class="option-radio"></div>
+            <div class="option-content">
+              <div class="option-label">${fuel.fuel_type.charAt(0).toUpperCase() + fuel.fuel_type.slice(1)}</div>
+              <div class="option-desc">K${fuel.price_per_litre.toFixed(2)}/litre</div>
+            </div>
+          </div>
+        `).join('');
+      },
+
+      selectFuel(fuelType) {
+        this.order.fuelType = fuelType;
+        this.renderFuelOptions();
+        this.order.updateEstimatedTotal();
+      },
+
+      renderVehicleOptions() {
+        const container = document.getElementById('vehicleList');
+        container.innerHTML = this.vehicles.map(vehicle => `
+          <div class="option-item ${this.order.vehicleId === vehicle.id ? 'selected' : ''}" onclick="app.selectVehicle('${vehicle.id}')">
+            <div class="option-radio"></div>
+            <div class="option-content">
+              <div class="option-label">${vehicle.name} — ${vehicle.plate}</div>
+              <div class="option-desc">${vehicle.fuel_type} · ${vehicle.tank_capacity}L tank</div>
+            </div>
+          </div>
+        `).join('');
+        if (this.vehicles.length > 0 && !this.order.vehicleId) {
+          this.order.vehicleId = this.vehicles[0].id;
+        }
+      },
+
+      selectVehicle(vehicleId) {
+        this.order.vehicleId = vehicleId;
+        this.renderVehicleOptions();
+      },
+
+      renderLocationOptions() {
+        const container = document.getElementById('locationList');
+        container.innerHTML = this.locations.map(location => `
+          <div class="option-item ${this.order.locationId === location.id ? 'selected' : ''}" onclick="app.selectLocation('${location.id}')">
+            <div class="option-radio"></div>
+            <div class="option-content">
+              <div class="option-label">${location.name}</div>
+              <div class="option-desc">${location.address}</div>
+            </div>
+          </div>
+        `).join('');
+        if (this.locations.length > 0 && !this.order.locationId) {
+          this.order.locationId = this.locations[0].id;
+        }
+      },
+
+      selectLocation(locationId) {
+        this.order.locationId = locationId;
+        this.renderLocationOptions();
+      },
+
+      renderTimeButtons() {
+        const times = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00'];
+        const container = document.getElementById('timeButtons');
+        container.innerHTML = times.map(time => `
+          <button class="tab-btn ${time === '14:00' ? 'active' : ''}" onclick="app.selectTime('${time}')">${time}</button>
+        `).join('');
+      },
+
+      selectTime(time) {
+        this.order.selectedTime = time;
+        document.querySelectorAll('#timeButtons .tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+      },
+
+      renderVehiclesList() {
+        const container = document.getElementById('vehiclesList');
+        if (this.vehicles.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-icon">🚗</div><div class="empty-title">No vehicles</div><div class="empty-desc">Add your first vehicle to get started</div></div>';
+          return;
+        }
+        container.innerHTML = this.vehicles.map(vehicle => `
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+              <div>
+                <h3 style="font-weight: 600; color: var(--royal);">${vehicle.name}</h3>
+                <p style="font-size: 12px; color: var(--grey);">${vehicle.plate}</p>
+              </div>
+              <span style="font-size: 28px;">${vehicle.icon || '🚗'}</span>
+            </div>
+            <div style="font-size: 13px; color: var(--grey);">
+              ${vehicle.fuel_type} • ${vehicle.tank_capacity}L tank
+            </div>
+          </div>
+        `).join('');
+      },
+
+      renderRecentOrders() {
+        const container = document.getElementById('recentOrdersList');
+        const recent = this.orders.slice(0, 3);
+
+        if (recent.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No orders yet</div><div class="empty-desc">Start by placing your first fuel order</div></div>';
+          return;
+        }
+
+        container.innerHTML = recent.map(order => `
+          <div class="order-card">
+            <div class="order-header">
+              <div class="order-number">#${order.order_number}</div>
+              <div class="order-status ${order.statusColor}">${order.statusDisplay}</div>
+            </div>
+            <div class="order-info">
+              <div class="order-fuel">${order.fuel_type.charAt(0).toUpperCase() + order.fuel_type.slice(1)} — ${order.volume}L</div>
+              <div class="order-details">${order.delivery_date} at ${order.delivery_time}</div>
+            </div>
+            <div class="order-total">K${order.total.toFixed(0)}</div>
+          </div>
+        `).join('');
+      },
+
+      loadProfile() {
+        if (this.user) {
+          document.getElementById('profileName').value = this.user.name || '';
+          document.getElementById('profileEmail').value = this.user.email || '';
+          document.getElementById('profilePhone').value = this.user.phone || '';
+          document.getElementById('welcomeName').textContent = `Welcome back, ${this.user.name}`;
+        }
+      },
+
+      async saveProfile() {
+        try {
+          const response = await fetch(`${this.baseUrl}/customer/profile`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${this.token}`
+            },
+            body: JSON.stringify({
+              name: document.getElementById('profileName').value,
+              phone: document.getElementById('profilePhone').value
+            })
+          });
+
+          if (response.ok) {
+            this.user = await response.json();
+            localStorage.setItem('user', JSON.stringify(this.user));
+            this.showToast('Profile updated successfully', 'success');
+          } else {
+            this.showToast('Failed to update profile', 'error');
+          }
+        } catch (error) {
+          this.showToast('Error: ' + error.message, 'error');
+        }
+      },
+
+      logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        this.token = null;
+        this.user = null;
+        location.reload();
+      },
+
+      showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+          toast.remove();
+        }, 3000);
+      }
+    };
+
+    // Auth handling
+    document.getElementById('authForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const isLogin = app.isAuthMode === 'login';
+      const endpoint = isLogin ? 'auth/login' : 'auth/register';
+
+      let body;
+      if (isLogin) {
+        body = {
+          email: document.getElementById('loginEmail').value,
+          password: document.getElementById('loginPassword').value
+        };
+      } else {
+        body = {
+          name: document.getElementById('registerName').value,
+          email: document.getElementById('registerEmail').value,
+          phone: document.getElementById('registerPhone').value,
+          password: document.getElementById('registerPassword').value
+        };
+      }
+
+      try {
+        const response = await fetch(`${app.baseUrl}/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          app.token = data.token;
+          app.user = data.user;
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+
+          app.showMainApp();
+          await app.loadData();
+          app.showToast(isLogin ? 'Logged in successfully' : 'Account created successfully', 'success');
+        } else {
+          const error = await response.json();
+          app.showToast(error.error || 'Authentication failed', 'error');
+        }
+      } catch (error) {
+        app.showToast('Error: ' + error.message, 'error');
+      }
+    });
+
+    document.getElementById('authToggleBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      app.isAuthMode = app.isAuthMode === 'login' ? 'register' : 'login';
+
+      const isLogin = app.isAuthMode === 'login';
+      document.getElementById('authFormTitle').textContent = isLogin ? 'Sign In' : 'Create Account';
+      document.getElementById('loginInputs').style.display = isLogin ? 'block' : 'none';
+      document.getElementById('registerInputs').style.display = isLogin ? 'none' : 'block';
+      document.getElementById('authSubmitBtn').textContent = isLogin ? 'Sign In' : 'Create Account';
+      document.getElementById('authToggleText').textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
+      document.getElementById('authToggleBtn').textContent = isLogin ? 'Sign Up' : 'Sign In';
+    });
+
+    // Volume slider sync
+    document.getElementById('volumeSlider').addEventListener('input', (e) => {
+      app.order.volume = parseInt(e.target.value);
+      app.order.updateVolumeDisplay();
+    });
+
+    // Screen navigation
+    function switchTab(screenId) {
+      document.querySelectorAll('.screen-wrapper').forEach(screen => {
+        screen.classList.remove('active');
+      });
+      document.getElementById(screenId).classList.add('active');
+
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.tab === screenId);
+      });
+
+      if (screenId === 'trackingScreen') {
+        app.renderTrackingScreen();
+      }
+    }
+
+    // Tracking screen
+    app.renderTrackingScreen = async function() {
+      const container = document.getElementById('trackingContent');
+
+      if (this.orders.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📍</div><div class="empty-title">No active orders</div><div class="empty-desc">Place an order to track its delivery</div></div>';
+        return;
+      }
+
+      const activeOrder = this.orders.find(o => o.isActive);
+      if (!activeOrder) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No active orders</div><div class="empty-desc">Your orders have been delivered</div></div>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="active-order-banner">
+          <div class="active-order-label">LIVE TRACKING</div>
+          <div class="active-order-title">${activeOrder.fuel_type.charAt(0).toUpperCase() + activeOrder.fuel_type.slice(1)} — ${activeOrder.volume}L</div>
+          <div class="active-order-eta">ETA: ${activeOrder.eta_minutes || 0} minutes</div>
+          <div class="progress-bar" style="margin-top: 12px;">
+            <div class="progress-fill" style="width: ${activeOrder.progress}%;"></div>
+          </div>
+        </div>
+
+        <div id="liveMap"></div>
+
+        <div class="card">
+          <h3 class="section-header">Order Details</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div>
+              <div style="font-size: 12px; color: var(--grey); margin-bottom: 4px;">Order #</div>
+              <div style="font-weight: 600; color: var(--royal);">${activeOrder.order_number}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: var(--grey); margin-bottom: 4px;">Status</div>
+              <div style="font-weight: 600; color: var(--sky);">${activeOrder.statusDisplay}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: var(--grey); margin-bottom: 4px;">Total</div>
+              <div style="font-weight: 600; color: var(--royal);">K${activeOrder.total.toFixed(0)}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: var(--grey); margin-bottom: 4px;">Delivery</div>
+              <div style="font-weight: 600; color: var(--royal);">${activeOrder.delivery_date}</div>
+            </div>
+          </div>
+        </div>
+
+        ${activeOrder.driver_name ? `
+          <div class="driver-card">
+            <div class="driver-icon">👨‍✈️</div>
+            <div class="driver-info">
+              <div class="driver-name">${activeOrder.driver_name}</div>
+              <div class="driver-phone">${activeOrder.driver_phone}</div>
+              ${activeOrder.driver_rating ? `<div class="driver-rating">⭐ ${activeOrder.driver_rating.toFixed(1)}</div>` : ''}
+            </div>
+          </div>
+        ` : ''}
+      `;
+
+      // Initialize map
+      if (activeOrder.driver_location && typeof google !== 'undefined') {
+        setTimeout(() => {
+          const map = new google.maps.Map(document.getElementById('liveMap'), {
+            zoom: 14,
+            center: {
+              lat: activeOrder.driver_location.lat,
+              lng: activeOrder.driver_location.lng
+            }
+          });
+
+          new google.maps.Marker({
+            position: {
+              lat: activeOrder.driver_location.lat,
+              lng: activeOrder.driver_location.lng
+            },
+            map: map,
+            title: activeOrder.driver_name || 'Driver'
+          });
+        }, 100);
+      }
+    };
+
+    // Load Google Maps API key from backend
+    async function loadGoogleMaps() {
+      try {
+        const resp = await fetch('/api/config/maps-key');
+        const { key } = await resp.json();
+        if (!key) return;
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}`;
+        script.async = true;
+        document.head.appendChild(script);
+      } catch(e) { console.error('Failed to load maps:', e); }
+    }
+
+    // Initialize app
+    loadGoogleMaps();
+    app.init();
+  </script>
+</body>
+</html>
