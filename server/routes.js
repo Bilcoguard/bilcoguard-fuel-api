@@ -95,7 +95,7 @@ router.post('/vehicles', authMiddleware, (req, res) => {
 
   const id = uuid();
   db.prepare('INSERT INTO vehicles (id, user_id, name, plate, fuel_type, tank_capacity, icon) VALUES (?,?,?,?,?,?,?)')
-    .run(id, req.user.id, name, plate, fuel_type || 'diesel', tank_capacity || 80, icon || '🚙');
+    .run(id, req.user.id, name, plate, fuel_type || 'diesel', tank_capacity || 80, icon || 'sedan');
 
   const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
   res.status(201).json(vehicle);
@@ -127,6 +127,42 @@ router.post('/locations', authMiddleware, (req, res) => {
 
   const loc = db.prepare('SELECT * FROM locations WHERE id = ?').get(id);
   res.status(201).json(loc);
+});
+
+router.put('/locations/:id', authMiddleware, (req, res) => {
+  const existing = db.prepare('SELECT * FROM locations WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!existing) return res.status(404).json({ error: 'Location not found' });
+
+  const { name, address, lat, lng, is_default } = req.body;
+
+  if (is_default) {
+    db.prepare('UPDATE locations SET is_default = 0 WHERE user_id = ?').run(req.user.id);
+  }
+
+  db.prepare(`
+    UPDATE locations SET
+      name = COALESCE(?, name),
+      address = COALESCE(?, address),
+      lat = COALESCE(?, lat),
+      lng = COALESCE(?, lng),
+      is_default = COALESCE(?, is_default)
+    WHERE id = ? AND user_id = ?
+  `).run(
+    name || null, address || null,
+    lat !== undefined ? lat : null,
+    lng !== undefined ? lng : null,
+    is_default !== undefined ? (is_default ? 1 : 0) : null,
+    req.params.id, req.user.id
+  );
+
+  const loc = db.prepare('SELECT * FROM locations WHERE id = ?').get(req.params.id);
+  res.json(loc);
+});
+
+router.delete('/locations/:id', authMiddleware, (req, res) => {
+  const result = db.prepare('DELETE FROM locations WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
+  if (result.changes === 0) return res.status(404).json({ error: 'Location not found' });
+  res.json({ success: true });
 });
 
 // ─── ORDERS ───────────────────────────────────────────

@@ -31,7 +31,7 @@ db.exec(`
     plate TEXT NOT NULL,
     fuel_type TEXT NOT NULL DEFAULT 'diesel',
     tank_capacity INTEGER DEFAULT 80,
-    icon TEXT DEFAULT '🚙',
+    icon TEXT DEFAULT 'sedan',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -166,10 +166,10 @@ if (userCount === 0) {
 
   // Vehicles
   const vehicles = [
-    { name: 'Toyota Hilux', plate: 'BAH 1234', fuel: 'diesel', tank: 80, icon: '🚙' },
-    { name: 'Land Cruiser 300', plate: 'ABZ 5678', fuel: 'petrol', tank: 110, icon: '🚗' },
-    { name: 'CAT 320 Excavator', plate: 'FLEET-01', fuel: 'diesel', tank: 350, icon: '🚜' },
-    { name: 'Isuzu FTR Truck', plate: 'BAC 9012', fuel: 'diesel', tank: 200, icon: '🚛' },
+    { name: 'Toyota Hilux', plate: 'BAH 1234', fuel: 'diesel', tank: 80, icon: 'pickup' },
+    { name: 'Land Cruiser 300', plate: 'ABZ 5678', fuel: 'petrol', tank: 110, icon: 'suv' },
+    { name: 'CAT 320 Excavator', plate: 'FLEET-01', fuel: 'diesel', tank: 350, icon: 'heavy' },
+    { name: 'Isuzu FTR Truck', plate: 'BAC 9012', fuel: 'diesel', tank: 200, icon: 'truck' },
   ];
   const insertVehicle = db.prepare(`
     INSERT INTO vehicles (id, user_id, name, plate, fuel_type, tank_capacity, icon)

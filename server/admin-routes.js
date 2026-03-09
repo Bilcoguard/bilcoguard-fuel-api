@@ -230,7 +230,7 @@ router.post('/vehicles', adminAuth, (req, res) => {
   db.prepare(`
     INSERT INTO vehicles (id, user_id, name, plate, fuel_type, tank_capacity, icon)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, ownerId, name, plate, fuel_type || 'diesel', tank_capacity || 80, icon || '🚙');
+  `).run(id, ownerId, name, plate, fuel_type || 'diesel', tank_capacity || 80, icon || 'sedan');
 
   const vehicle = db.prepare(`
     SELECT v.*, u.name as owner_name, u.company as owner_company
