@@ -154,7 +154,8 @@ router.get('/orders', authMiddleware, (req, res) => {
 router.get('/orders/active', authMiddleware, (req, res) => {
   const active = db.prepare(`
     SELECT o.*, v.name as vehicle_name, v.plate as vehicle_plate, v.icon as vehicle_icon,
-           l.name as location_name, l.address as location_address
+           l.name as location_name, l.address as location_address,
+           l.lat as location_lat, l.lng as location_lng
     FROM orders o
     LEFT JOIN vehicles v ON o.vehicle_id = v.id
     LEFT JOIN locations l ON o.location_id = l.id
@@ -285,21 +286,39 @@ router.get('/orders/:id/track', authMiddleware, (req, res) => {
 
   const events = db.prepare('SELECT * FROM order_events WHERE order_id = ? ORDER BY timestamp').all(order.id);
 
-  // Simulated driver location along route
-  const routePoints = [
-    [-15.44, 28.29], [-15.438, 28.295], [-15.435, 28.30], [-15.432, 28.305],
-    [-15.429, 28.31], [-15.426, 28.315], [-15.423, 28.318], [-15.420, 28.320],
-    [-15.418, 28.322], [-15.4167, 28.3222]
-  ];
-  const idx = Math.min(Math.floor((order.progress / 100) * (routePoints.length - 1)), routePoints.length - 1);
-  const driverLocation = { lat: routePoints[idx][0], lng: routePoints[idx][1] };
+  // Get real driver GPS location if available
+  let driverLocation = null;
+  let speedKmh = 0;
+  if (order.driver_id) {
+    const realLoc = db.prepare('SELECT lat, lng, heading, speed, updated_at FROM driver_locations WHERE driver_id = ?').get(order.driver_id);
+    if (realLoc) {
+      driverLocation = { lat: realLoc.lat, lng: realLoc.lng, heading: realLoc.heading, speed: realLoc.speed };
+      speedKmh = realLoc.speed ? Math.round(realLoc.speed * 3.6) : 0;
+    }
+  }
+
+  // Fallback to simulated location if no real GPS
+  if (!driverLocation) {
+    const routePoints = [
+      [-15.44, 28.29], [-15.438, 28.295], [-15.435, 28.30], [-15.432, 28.305],
+      [-15.429, 28.31], [-15.426, 28.315], [-15.423, 28.318], [-15.420, 28.320],
+      [-15.418, 28.322], [-15.4167, 28.3222]
+    ];
+    const idx = Math.min(Math.floor((order.progress / 100) * (routePoints.length - 1)), routePoints.length - 1);
+    driverLocation = { lat: routePoints[idx][0], lng: routePoints[idx][1] };
+    speedKmh = order.progress < 90 ? 35 + Math.floor(Math.random() * 15) : 0;
+  }
+
+  // Get destination coordinates from the order's location
+  const dest = db.prepare('SELECT lat, lng FROM locations WHERE id = ?').get(order.location_id);
 
   res.json({
     ...order,
     events,
     driver_location: driverLocation,
-    route: routePoints,
-    speed_kmh: order.progress < 90 ? 35 + Math.floor(Math.random() * 15) : 0
+    destination_lat: dest ? dest.lat : null,
+    destination_lng: dest ? dest.lng : null,
+    speed_kmh: speedKmh
   });
 });
 
