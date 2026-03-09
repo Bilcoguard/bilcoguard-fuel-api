@@ -37,13 +37,13 @@ router.get('/profile', driverAuth, (req, res) => {
   const driver = db.prepare('SELECT id, email, name, phone, plate, licence_number, rating, total_deliveries, status, created_at FROM drivers WHERE id = ?').get(req.driver.id);
   if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
-  // Today's earnings
-  const todayEarnings = db.prepare(`
-    SELECT COALESCE(SUM(total * 0.15), 0) as amount FROM orders
+  // Today's deliveries count
+  const todayStats = db.prepare(`
+    SELECT COUNT(*) as count FROM orders
     WHERE driver_id = ? AND status = 'delivered' AND DATE(updated_at) = DATE('now')
   `).get(req.driver.id);
 
-  res.json({ ...driver, today_earnings: todayEarnings.amount });
+  res.json({ ...driver, today_deliveries: todayStats.count });
 });
 
 // Update driver profile
@@ -59,13 +59,13 @@ router.put('/profile', driverAuth, (req, res) => {
   const driver = db.prepare('SELECT id, email, name, phone, plate, licence_number, rating, total_deliveries, status, created_at FROM drivers WHERE id = ?').get(req.driver.id);
   if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
-  // Today's earnings
-  const todayEarnings = db.prepare(`
-    SELECT COALESCE(SUM(total * 0.15), 0) as amount FROM orders
+  // Today's deliveries count
+  const todayStats = db.prepare(`
+    SELECT COUNT(*) as count FROM orders
     WHERE driver_id = ? AND status = 'delivered' AND DATE(updated_at) = DATE('now')
   `).get(req.driver.id);
 
-  res.json({ ...driver, today_earnings: todayEarnings.amount });
+  res.json({ ...driver, today_deliveries: todayStats.count });
 });
 
 // Update driver status
@@ -202,9 +202,8 @@ router.put('/orders/:id/status', driverAuth, (req, res) => {
     db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
       .run(uuid(), order.user_id, 'Delivery Complete', `Your ${order.volume}L ${order.fuel_type} delivery is complete! Thank you for using Bilcoguard Fuel.`, 'success');
     // Driver notification
-    const earning = (order.total * 0.15).toFixed(2);
     db.prepare('INSERT INTO driver_notifications (id, driver_id, title, body, type, order_id) VALUES (?,?,?,?,?,?)')
-      .run(uuid(), req.driver.id, 'Delivery Completed', `You completed order #${order.order_number}. Earned K${earning}.`, 'earning', req.params.id);
+      .run(uuid(), req.driver.id, 'Delivery Completed', `You completed order #${order.order_number} — ${order.volume}L ${order.fuel_type} delivered successfully.`, 'delivery', req.params.id);
     // Admin notification
     db.prepare('INSERT INTO admin_notifications (id, title, body, type, order_id) VALUES (?,?,?,?,?)')
       .run(uuid(), 'Delivery Completed', `${driverName} completed order #${order.order_number} (${order.volume}L ${order.fuel_type})`, 'completed', req.params.id);
@@ -214,35 +213,71 @@ router.put('/orders/:id/status', driverAuth, (req, res) => {
   res.json(updated);
 });
 
-// Earnings
+// Driver Dashboard Stats
 router.get('/earnings', driverAuth, (req, res) => {
+  // Today's stats
   const today = db.prepare(`
-    SELECT COALESCE(SUM(total * 0.15), 0) as amount, COUNT(*) as deliveries FROM orders
-    WHERE driver_id = ? AND status = 'delivered' AND DATE(updated_at) = DATE('now')
+    SELECT COUNT(*) as deliveries, COALESCE(SUM(volume), 0) as volume_delivered,
+           COALESCE(SUM(total), 0) as total_value
+    FROM orders WHERE driver_id = ? AND status = 'delivered' AND DATE(updated_at) = DATE('now')
   `).get(req.driver.id);
 
+  // This week's stats
   const thisWeek = db.prepare(`
-    SELECT COALESCE(SUM(total * 0.15), 0) as amount, COUNT(*) as deliveries FROM orders
-    WHERE driver_id = ? AND status = 'delivered' AND updated_at >= DATE('now', '-7 days')
+    SELECT COUNT(*) as deliveries, COALESCE(SUM(volume), 0) as volume_delivered,
+           COALESCE(SUM(total), 0) as total_value
+    FROM orders WHERE driver_id = ? AND status = 'delivered' AND updated_at >= DATE('now', '-7 days')
   `).get(req.driver.id);
 
+  // This month's stats
   const thisMonth = db.prepare(`
-    SELECT COALESCE(SUM(total * 0.15), 0) as amount, COUNT(*) as deliveries FROM orders
-    WHERE driver_id = ? AND status = 'delivered' AND updated_at >= DATE('now', 'start of month')
+    SELECT COUNT(*) as deliveries, COALESCE(SUM(volume), 0) as volume_delivered,
+           COALESCE(SUM(total), 0) as total_value
+    FROM orders WHERE driver_id = ? AND status = 'delivered' AND updated_at >= DATE('now', 'start of month')
   `).get(req.driver.id);
 
+  // All-time stats
+  const allTime = db.prepare(`
+    SELECT COUNT(*) as deliveries, COALESCE(SUM(volume), 0) as volume_delivered,
+           COALESCE(SUM(total), 0) as total_value
+    FROM orders WHERE driver_id = ? AND status = 'delivered'
+  `).get(req.driver.id);
+
+  // Fuel type breakdown this month
+  const fuelBreakdown = db.prepare(`
+    SELECT fuel_type, COUNT(*) as count, COALESCE(SUM(volume), 0) as volume
+    FROM orders WHERE driver_id = ? AND status = 'delivered' AND updated_at >= DATE('now', 'start of month')
+    GROUP BY fuel_type ORDER BY count DESC
+  `).all(req.driver.id);
+
+  // Daily deliveries this week (for chart)
+  const weeklyActivity = db.prepare(`
+    SELECT DATE(updated_at) as day, COUNT(*) as deliveries, COALESCE(SUM(volume), 0) as volume
+    FROM orders WHERE driver_id = ? AND status = 'delivered' AND updated_at >= DATE('now', '-7 days')
+    GROUP BY DATE(updated_at) ORDER BY day ASC
+  `).all(req.driver.id);
+
+  // Driver rating & total deliveries
+  const driver = db.prepare('SELECT rating, total_deliveries FROM drivers WHERE id = ?').get(req.driver.id);
+
+  // Recent deliveries
   const recentDeliveries = db.prepare(`
-    SELECT o.order_number, o.fuel_type, o.volume, o.total, (o.total * 0.15) as earning,
-           o.updated_at, u.name as customer_name
+    SELECT o.order_number, o.fuel_type, o.volume, o.total,
+           o.updated_at, u.name as customer_name, o.location_address
     FROM orders o LEFT JOIN users u ON o.user_id = u.id
     WHERE o.driver_id = ? AND o.status = 'delivered'
     ORDER BY o.updated_at DESC LIMIT 20
   `).all(req.driver.id);
 
   res.json({
-    today: { amount: today.amount, deliveries: today.deliveries },
-    this_week: { amount: thisWeek.amount, deliveries: thisWeek.deliveries },
-    this_month: { amount: thisMonth.amount, deliveries: thisMonth.deliveries },
+    today: { deliveries: today.deliveries, volume_delivered: today.volume_delivered, total_value: today.total_value },
+    this_week: { deliveries: thisWeek.deliveries, volume_delivered: thisWeek.volume_delivered, total_value: thisWeek.total_value },
+    this_month: { deliveries: thisMonth.deliveries, volume_delivered: thisMonth.volume_delivered, total_value: thisMonth.total_value },
+    all_time: { deliveries: allTime.deliveries, volume_delivered: allTime.volume_delivered, total_value: allTime.total_value },
+    fuel_breakdown: fuelBreakdown,
+    weekly_activity: weeklyActivity,
+    rating: driver?.rating || 0,
+    total_deliveries: driver?.total_deliveries || 0,
     recent_deliveries: recentDeliveries
   });
 });

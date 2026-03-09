@@ -146,7 +146,7 @@ router.get('/drivers', adminAuth, (req, res) => {
     SELECT d.id, d.email, d.name, d.phone, d.licence_number, d.rating, d.total_deliveries, d.status, d.created_at,
            d.vehicle_id, v.name as vehicle_name, v.plate as vehicle_plate,
            COUNT(CASE WHEN o.status = 'delivered' THEN 1 END) as completed_orders,
-           COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total * 0.15 ELSE 0 END), 0) as total_earnings
+           COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.volume ELSE 0 END), 0) as total_volume_delivered
     FROM drivers d
     LEFT JOIN vehicles v ON d.vehicle_id = v.id
     LEFT JOIN orders o ON d.id = o.driver_id
@@ -344,8 +344,8 @@ router.put('/prices/:id', adminAuth, (req, res) => {
 router.get('/finance', adminAuth, (req, res) => {
   const revenue = db.prepare(`
     SELECT COALESCE(SUM(total), 0) as total_revenue,
-           COALESCE(SUM(total * 0.15), 0) as driver_payouts,
-           COALESCE(SUM(total * 0.85), 0) as net_revenue
+           COUNT(*) as total_orders,
+           COALESCE(SUM(volume), 0) as total_volume
     FROM orders WHERE status = 'delivered'
   `).get();
 
