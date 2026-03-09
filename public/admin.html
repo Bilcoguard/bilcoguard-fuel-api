@@ -2134,8 +2134,8 @@
                             <div class="driver-stat-value">${d.vehicle_name ? d.vehicle_name + ' (' + (d.vehicle_plate || '') + ')' : '<em>None</em>'}</div>
                         </div>
                         <div class="driver-stat">
-                            <div class="driver-stat-label">Earnings</div>
-                            <div class="driver-stat-value">K${Math.round(d.total_earnings || 0).toLocaleString()}</div>
+                            <div class="driver-stat-label">Deliveries</div>
+                            <div class="driver-stat-value">${d.total_deliveries || 0}</div>
                         </div>
                     </div>
                     <div class="driver-actions">
