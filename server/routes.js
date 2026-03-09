@@ -270,16 +270,16 @@ router.post('/orders', authMiddleware, (req, res) => {
       .run(uuid(), req.user.id, 'Order Confirmed', `Your order #${orderNumber} has been confirmed and is being processed.`, 'order');
 
     setTimeout(() => {
-      db.prepare("UPDATE orders SET status = 'driver_assigned', progress = 10, eta_minutes = 30 WHERE id = ?").run(id);
+      db.prepare("UPDATE orders SET status = 'driver_assigned', progress = 10 WHERE id = ?").run(id);
       db.prepare('INSERT INTO order_events (id, order_id, event) VALUES (?,?,?)').run(uuid(), id, 'driver_assigned');
       db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
-        .run(uuid(), req.user.id, 'Driver Assigned', `Joseph Mwanza has been assigned to deliver your ${volume}L ${fuel_type}. ETA: 30 min.`, 'delivery');
+        .run(uuid(), req.user.id, 'Driver Assigned', `Joseph Mwanza has been assigned to deliver your ${volume}L ${fuel_type}.`, 'delivery');
 
       setTimeout(() => {
-        db.prepare("UPDATE orders SET status = 'en_route', progress = 25, eta_minutes = 22 WHERE id = ?").run(id);
+        db.prepare("UPDATE orders SET status = 'en_route', progress = 25 WHERE id = ?").run(id);
         db.prepare('INSERT INTO order_events (id, order_id, event) VALUES (?,?,?)').run(uuid(), id, 'en_route');
         db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
-          .run(uuid(), req.user.id, 'Driver En Route', `Your driver is on the way! ETA: 22 minutes.`, 'delivery');
+          .run(uuid(), req.user.id, 'Driver En Route', `Your driver is on the way!`, 'delivery');
         db.prepare('INSERT INTO admin_notifications (id, title, body, type, order_id) VALUES (?,?,?,?,?)')
           .run(uuid(), 'Driver En Route', `Joseph Mwanza is en route for order #${orderNumber}`, 'status_update', id);
       }, 5000);
@@ -293,31 +293,22 @@ router.post('/orders', authMiddleware, (req, res) => {
   res.status(201).json(order);
 });
 
-// ─── TRACKING (live progress simulation) ──────────────
-router.get('/orders/:id/track', authMiddleware, (req, res) => {
+// ─── TRACKING (live with Distance Matrix) ──────────────
+router.get('/orders/:id/track', authMiddleware, async (req, res) => {
   const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!order) return res.status(404).json({ error: 'Order not found' });
 
-  // Simulate progress advancement for active orders
-  if (['en_route', 'arriving', 'fueling'].includes(order.status) && order.progress < 100) {
-    const newProgress = Math.min(order.progress + Math.floor(Math.random() * 3) + 1, 100);
-    const newEta = Math.max(0, Math.round((100 - newProgress) * 0.3));
-    let newStatus = order.status;
-
-    if (newProgress >= 80 && order.status === 'en_route') newStatus = 'arriving';
-    if (newProgress >= 92 && order.status === 'arriving') newStatus = 'fueling';
-    if (newProgress >= 100) newStatus = 'delivered';
-
-    db.prepare('UPDATE orders SET progress = ?, eta_minutes = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(newProgress, newEta, newStatus, order.id);
-
-    if (newStatus !== order.status) {
-      db.prepare('INSERT INTO order_events (id, order_id, event) VALUES (?,?,?)').run(uuid(), order.id, newStatus);
-    }
-
-    order.progress = newProgress;
-    order.eta_minutes = newEta;
-    order.status = newStatus;
+  // Progress is status-driven, not randomly incremented
+  // Status transitions happen via driver actions or order flow — not here
+  const statusProgress = {
+    'pending': 0, 'confirmed': 5, 'driver_assigned': 10,
+    'en_route': 35, 'arriving': 80, 'fueling': 92, 'delivered': 100, 'cancelled': 0
+  };
+  // Use stored progress if it's higher (e.g. updated by distance calc), otherwise use status-based minimum
+  const minProgress = statusProgress[order.status] || 0;
+  if (order.progress < minProgress) {
+    db.prepare('UPDATE orders SET progress = ? WHERE id = ?').run(minProgress, order.id);
+    order.progress = minProgress;
   }
 
   const events = db.prepare('SELECT * FROM order_events WHERE order_id = ? ORDER BY timestamp').all(order.id);
@@ -342,11 +333,47 @@ router.get('/orders/:id/track', authMiddleware, (req, res) => {
     ];
     const idx = Math.min(Math.floor((order.progress / 100) * (routePoints.length - 1)), routePoints.length - 1);
     driverLocation = { lat: routePoints[idx][0], lng: routePoints[idx][1] };
-    speedKmh = order.progress < 90 ? 35 + Math.floor(Math.random() * 15) : 0;
+    speedKmh = order.progress < 90 ? 40 : 0;
   }
 
   // Get destination coordinates from the order's location
   const dest = db.prepare('SELECT lat, lng FROM locations WHERE id = ?').get(order.location_id);
+
+  // Call Google Distance Matrix for real ETA and distance on every tracking request
+  let etaMinutes = order.eta_minutes;
+  let distanceText = null;
+  const GMAPS_KEY = process.env.GMAPS_TOKEN;
+  if (GMAPS_KEY && dest && driverLocation && ['en_route', 'arriving', 'fueling', 'driver_assigned'].includes(order.status)) {
+    try {
+      const dmUrl = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${driverLocation.lat},${driverLocation.lng}&destinations=${dest.lat},${dest.lng}&departure_time=now&traffic_model=best_guess&key=${GMAPS_KEY}`;
+      const dmRes = await fetch(dmUrl);
+      const dmData = await dmRes.json();
+      if (dmData.rows && dmData.rows[0] && dmData.rows[0].elements[0].status === 'OK') {
+        const el = dmData.rows[0].elements[0];
+        const duration = el.duration_in_traffic || el.duration;
+        etaMinutes = Math.ceil(duration.value / 60);
+        distanceText = el.distance.text;
+
+        // Calculate distance-based progress for en_route status
+        if (order.status === 'en_route' && el.distance) {
+          const distKm = el.distance.value / 1000;
+          // Estimate progress: en_route spans 35-79%, map distance to this range
+          // Assume max delivery distance is ~30km in Lusaka
+          const distProgress = Math.min(79, Math.max(35, Math.round(35 + (1 - distKm / 30) * 44)));
+          if (distProgress > order.progress) {
+            db.prepare('UPDATE orders SET progress = ?, eta_minutes = ? WHERE id = ?').run(distProgress, etaMinutes, order.id);
+            order.progress = distProgress;
+          } else {
+            db.prepare('UPDATE orders SET eta_minutes = ? WHERE id = ?').run(etaMinutes, order.id);
+          }
+        } else {
+          db.prepare('UPDATE orders SET eta_minutes = ? WHERE id = ?').run(etaMinutes, order.id);
+        }
+      }
+    } catch (e) {
+      console.error('Distance Matrix API failed in track:', e.message);
+    }
+  }
 
   res.json({
     ...order,
@@ -354,7 +381,9 @@ router.get('/orders/:id/track', authMiddleware, (req, res) => {
     driver_location: driverLocation,
     destination_lat: dest ? dest.lat : null,
     destination_lng: dest ? dest.lng : null,
-    speed_kmh: speedKmh
+    speed_kmh: speedKmh,
+    eta_minutes: etaMinutes,
+    distance_text: distanceText
   });
 });
 
@@ -381,25 +410,38 @@ router.get('/orders/:id/driver-location', authMiddleware, async (req, res) => {
       const dmData = await dmRes.json();
       if (dmData.rows && dmData.rows[0] && dmData.rows[0].elements[0].status === 'OK') {
         const el = dmData.rows[0].elements[0];
-        // Use duration_in_traffic if available, otherwise regular duration
         const duration = el.duration_in_traffic || el.duration;
         etaMinutes = Math.ceil(duration.value / 60);
         distanceText = el.distance.text;
 
-        // Update the order's ETA with real traffic data
-        db.prepare('UPDATE orders SET eta_minutes = ? WHERE id = ?').run(etaMinutes, order.id);
+        // Calculate distance-based progress for en_route status
+        if (order.status === 'en_route' && el.distance) {
+          const distKm = el.distance.value / 1000;
+          const distProgress = Math.min(79, Math.max(35, Math.round(35 + (1 - distKm / 30) * 44)));
+          if (distProgress > order.progress) {
+            db.prepare('UPDATE orders SET progress = ?, eta_minutes = ? WHERE id = ?').run(distProgress, etaMinutes, order.id);
+          } else {
+            db.prepare('UPDATE orders SET eta_minutes = ? WHERE id = ?').run(etaMinutes, order.id);
+          }
+        } else {
+          db.prepare('UPDATE orders SET eta_minutes = ? WHERE id = ?').run(etaMinutes, order.id);
+        }
       }
     } catch (e) {
       console.error('Distance Matrix API failed:', e.message);
     }
   }
 
+  // Re-read order for updated progress
+  const updatedOrder = db.prepare('SELECT status, progress FROM orders WHERE id = ?').get(order.id);
+
   res.json({
     driver_location: { lat: loc.lat, lng: loc.lng, heading: loc.heading, speed: loc.speed },
     destination: dest ? { lat: dest.lat, lng: dest.lng } : null,
     updated_at: loc.updated_at,
     driver_name: order.driver_name,
-    status: order.status,
+    status: updatedOrder ? updatedOrder.status : order.status,
+    progress: updatedOrder ? updatedOrder.progress : order.progress,
     eta_minutes: etaMinutes,
     distance_text: distanceText
   });
