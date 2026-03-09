@@ -8,7 +8,6 @@
   <title>Bilcoguard Fuel Delivery</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAzpBlRxrim-Imj8ZFNoy3BfFUjLJfL0n4"></script>
   <style>
     :root {
       --royal: #2E3192;
@@ -45,13 +44,34 @@
       overflow: hidden;
     }
 
-    /* App Container */
+    /* App Container — always looks like a phone */
     .app-container {
       display: flex;
       flex-direction: column;
       height: 100vh;
+      height: 100dvh;
       width: 100%;
+      max-width: 430px;
+      margin: 0 auto;
       overflow: hidden;
+      position: relative;
+      background: var(--off-white);
+      box-shadow: 0 0 40px rgba(0,0,0,0.12);
+    }
+
+    /* Desktop background behind the phone frame */
+    @media (min-width: 431px) {
+      html, body {
+        background: linear-gradient(135deg, var(--royal) 0%, #1a1d6e 50%, var(--sky) 100%);
+      }
+      .app-container {
+        border-radius: 24px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        height: calc(100vh - 40px);
+        height: calc(100dvh - 40px);
+        border: 1px solid rgba(0,0,0,0.08);
+      }
     }
 
     .screen-wrapper {
@@ -1997,7 +2017,21 @@
       }
     };
 
+    // Load Google Maps API key from backend
+    async function loadGoogleMaps() {
+      try {
+        const resp = await fetch('/api/config/maps-key');
+        const { key } = await resp.json();
+        if (!key) return;
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}`;
+        script.async = true;
+        document.head.appendChild(script);
+      } catch(e) { console.error('Failed to load maps:', e); }
+    }
+
     // Initialize app
+    loadGoogleMaps();
     app.init();
   </script>
 </body>

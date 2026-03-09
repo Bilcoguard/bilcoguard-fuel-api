@@ -1606,6 +1606,15 @@
                 const data = await response.json().catch(() => null);
                 if (!response.ok) {
                     console.error('API Error:', response.status, data);
+                    if (response.status === 401) {
+                        // Token expired or invalid — force re-login
+                        localStorage.removeItem('adminToken');
+                        localStorage.removeItem('adminUser');
+                        app.token = null;
+                        app.currentUser = null;
+                        showLogin();
+                        return { _error: true, error: 'Session expired. Please log in again.' };
+                    }
                     return { _error: true, error: data?.error || ('Server error ' + response.status) };
                 }
                 return data;
@@ -2506,7 +2515,32 @@
                 await updateFleetMapMarkers();
             }
         }
+
+        // Load Google Maps API key from backend
+        async function loadGoogleMaps() {
+            try {
+                const resp = await fetch('/api/config/maps-key');
+                const { key } = await resp.json();
+                if (!key) return;
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=onGoogleMapsReady`;
+                script.async = true;
+                document.head.appendChild(script);
+            } catch(e) { console.error('Failed to load maps:', e); }
+        }
+
+        function onGoogleMapsReady() {
+            if (typeof initFleetMapWhenReady === 'function') {
+                initFleetMapWhenReady();
+            }
+        }
+
+        // Load Google Maps when document is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadGoogleMaps);
+        } else {
+            loadGoogleMaps();
+        }
     </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAzpBlRxrim-Imj8ZFNoy3BfFUjLJfL0n4"></script>
 </body>
 </html>
