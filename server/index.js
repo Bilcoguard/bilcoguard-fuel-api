@@ -1,3 +1,6 @@
+// dotenv only needed for local dev — Railway injects env vars directly
+try { require('dotenv').config(); } catch(e) {}
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -15,6 +18,11 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Config endpoint for Google Maps key
+app.get('/api/config/maps-key', (req, res) => {
+  res.json({ key: process.env.GOOGLE_MAPS_KEY || '' });
+});
 
 // API routes
 app.use('/api', routes);

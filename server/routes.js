@@ -52,6 +52,20 @@ router.get('/auth/me', authMiddleware, (req, res) => {
   res.json({ user, stats });
 });
 
+// ─── PROFILE ──────────────────────────────────────────
+router.put('/customer/profile', authMiddleware, (req, res) => {
+  const { name, phone, address } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+
+  db.prepare('UPDATE users SET name = ?, phone = ? WHERE id = ?')
+    .run(name.trim(), phone?.trim() || null, req.user.id);
+
+  const user = db.prepare('SELECT id, email, name, phone, company, plan, created_at FROM users WHERE id = ?').get(req.user.id);
+  res.json(user);
+});
+
 // ─── FUEL PRICES ──────────────────────────────────────
 router.get('/prices', (req, res) => {
   const prices = db.prepare('SELECT * FROM fuel_prices ORDER BY price_per_litre').all();
