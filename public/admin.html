@@ -271,6 +271,146 @@
             font-size: 14px;
         }
 
+        /* Notification Bell */
+        .notif-bell {
+            position: relative;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .notif-bell:hover { background: var(--off-white); }
+        .notif-bell svg { width: 22px; height: 22px; fill: var(--dark-grey); }
+        .notif-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: var(--danger);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+        }
+        .notif-badge.hidden { display: none; }
+        .notif-dropdown {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            width: 380px;
+            max-height: 460px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            overflow: hidden;
+            z-index: 1000;
+            display: none;
+        }
+        .notif-dropdown.open { display: block; }
+        .notif-dropdown-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--light-grey);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: var(--royal-blue);
+        }
+        .notif-dropdown-header button {
+            background: none;
+            border: none;
+            color: var(--sky-blue);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .notif-list {
+            max-height: 380px;
+            overflow-y: auto;
+        }
+        .notif-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .notif-item:hover { background: #f9fafb; }
+        .notif-item.unread { background: #eff6ff; border-left: 3px solid var(--sky-blue); }
+        .notif-item .notif-title { font-weight: 600; font-size: 13px; color: #333; }
+        .notif-item .notif-body { font-size: 12px; color: var(--dark-grey); margin-top: 2px; line-height: 1.4; }
+        .notif-item .notif-time { font-size: 11px; color: var(--grey); margin-top: 4px; }
+        .notif-item .notif-icon {
+            display: inline-flex;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+        .notif-icon.new_order { background: #dbeafe; }
+        .notif-icon.dispatch { background: #e0f2fe; }
+        .notif-icon.status_update { background: #fef3c7; }
+        .notif-icon.completed { background: #d1fae5; }
+        .notif-empty {
+            padding: 40px 16px;
+            text-align: center;
+            color: var(--grey);
+            font-size: 13px;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: white;
+            border-radius: 10px;
+            padding: 14px 18px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            min-width: 320px;
+            max-width: 400px;
+            animation: toastSlideIn 0.3s ease;
+            border-left: 4px solid var(--sky-blue);
+        }
+        .toast.success { border-left-color: var(--success); }
+        .toast.warning { border-left-color: var(--warning); }
+        .toast .toast-title { font-weight: 600; font-size: 13px; color: #333; }
+        .toast .toast-body { font-size: 12px; color: var(--dark-grey); margin-top: 2px; }
+        .toast .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--grey);
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+        }
+        @keyframes toastSlideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes toastSlideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
         .user-profile {
             display: flex;
             align-items: center;
@@ -973,6 +1113,9 @@
 </head>
 <body>
     <!-- Login Screen -->
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <div class="login-container" id="loginContainer">
         <div class="login-box">
             <h1>Bilcoguard Fuel</h1>
@@ -1107,6 +1250,19 @@
                 </div>
                 <div class="header-actions">
                     <input type="text" class="search-box" id="searchBox" placeholder="Search...">
+                    <div class="notif-bell" id="notifBell" onclick="toggleNotifDropdown()">
+                        <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                        <span class="notif-badge hidden" id="notifBadge">0</span>
+                        <div class="notif-dropdown" id="notifDropdown">
+                            <div class="notif-dropdown-header">
+                                <span>Notifications</span>
+                                <button onclick="markAllNotifRead(event)">Mark all read</button>
+                            </div>
+                            <div class="notif-list" id="notifList">
+                                <div class="notif-empty">No notifications yet</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="user-profile">
                         <div class="user-avatar">A</div>
                         <span>Admin</span>
@@ -1644,6 +1800,7 @@
             document.getElementById('loginContainer').classList.remove('active');
             document.getElementById('adminContainer').style.display = 'flex';
             loadDashboard();
+            startNotifPolling();
         }
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -2517,6 +2674,139 @@
         }
 
         // Load Google Maps API key from backend
+        // ─── NOTIFICATION SYSTEM ─────────────────────────
+        let lastNotifCount = 0;
+        let notifPollingTimer = null;
+
+        function startNotifPolling() {
+            loadNotifications();
+            notifPollingTimer = setInterval(loadNotifications, 8000);
+        }
+
+        function stopNotifPolling() {
+            if (notifPollingTimer) clearInterval(notifPollingTimer);
+        }
+
+        async function loadNotifications() {
+            if (!app.token) return;
+            const data = await apiCall('/notifications');
+            if (data._error) return;
+
+            const badge = document.getElementById('notifBadge');
+            const list = document.getElementById('notifList');
+
+            // Show toast for new notifications
+            if (data.unread_count > lastNotifCount && lastNotifCount > 0) {
+                const newNotifs = data.notifications.filter(n => !n.read).slice(0, data.unread_count - lastNotifCount);
+                newNotifs.forEach(n => showToast(n.title, n.body, n.type));
+                playNotifSound();
+            }
+            lastNotifCount = data.unread_count;
+
+            // Update badge
+            if (data.unread_count > 0) {
+                badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            // Render list
+            if (!data.notifications || data.notifications.length === 0) {
+                list.innerHTML = '<div class="notif-empty">No notifications yet</div>';
+                return;
+            }
+
+            list.innerHTML = data.notifications.map(n => {
+                const iconMap = { new_order: '📦', dispatch: '🚛', status_update: '📍', completed: '✅', info: 'ℹ️' };
+                const icon = iconMap[n.type] || 'ℹ️';
+                const timeAgo = getTimeAgo(n.created_at);
+                return `
+                    <div class="notif-item ${n.read ? '' : 'unread'}" onclick="markNotifRead('${n.id}', this)">
+                        <div style="display:flex;align-items:flex-start">
+                            <span class="notif-icon ${n.type}">${icon}</span>
+                            <div>
+                                <div class="notif-title">${n.title}</div>
+                                <div class="notif-body">${n.body}</div>
+                                <div class="notif-time">${timeAgo}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleNotifDropdown() {
+            const dd = document.getElementById('notifDropdown');
+            dd.classList.toggle('open');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const bell = document.getElementById('notifBell');
+            const dd = document.getElementById('notifDropdown');
+            if (bell && dd && !bell.contains(e.target)) {
+                dd.classList.remove('open');
+            }
+        });
+
+        async function markNotifRead(id, el) {
+            await apiCall(`/notifications/${id}/read`, 'PUT');
+            if (el) el.classList.remove('unread');
+            loadNotifications();
+        }
+
+        async function markAllNotifRead(e) {
+            e.stopPropagation();
+            await apiCall('/notifications/read-all', 'PUT');
+            loadNotifications();
+        }
+
+        function showToast(title, body, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const cls = type === 'completed' ? 'success' : (type === 'new_order' ? '' : '');
+            toast.className = `toast ${cls}`;
+            toast.innerHTML = `
+                <div>
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-body">${body}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'toastSlideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 6000);
+        }
+
+        function playNotifSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.3);
+            } catch(e) {}
+        }
+
+        function getTimeAgo(dateStr) {
+            const now = new Date();
+            const date = new Date(dateStr + (dateStr.includes('Z') ? '' : 'Z'));
+            const secs = Math.floor((now - date) / 1000);
+            if (secs < 60) return 'Just now';
+            if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+            if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+            return Math.floor(secs / 86400) + 'd ago';
+        }
+
         async function loadGoogleMaps() {
             try {
                 const resp = await fetch('/api/config/maps-key');

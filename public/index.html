@@ -1382,6 +1382,23 @@
       </div>
     </div>
 
+    <!-- Alerts Screen -->
+    <div id="alertsScreen" class="screen-wrapper">
+      <div class="header">
+        <div class="header-content">
+          <h1>Notifications</h1>
+          <div class="header-subtitle">Order updates & alerts</div>
+        </div>
+      </div>
+      <div class="content" id="alertsList">
+        <div style="text-align:center;padding:60px 20px;color:var(--grey)">
+          <div style="font-size:48px;margin-bottom:12px">🔔</div>
+          <div style="font-weight:600;font-size:16px">No notifications yet</div>
+          <div style="font-size:13px;margin-top:4px">Order updates will appear here</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Bottom Navigation -->
     <div class="bottom-nav">
       <button class="nav-item active" data-tab="homeScreen" onclick="switchTab('homeScreen')">
@@ -1399,6 +1416,10 @@
       <button class="nav-item" data-tab="trackingScreen" onclick="switchTab('trackingScreen')">
         <div class="nav-icon">📍</div>
         <div>Track</div>
+      </button>
+      <button class="nav-item" data-tab="alertsScreen" onclick="switchTab('alertsScreen')">
+        <div class="nav-icon" style="position:relative">🔔<span class="notif-dot" id="webNotifDot" style="display:none;position:absolute;top:-2px;right:-6px;width:8px;height:8px;background:#EF4444;border-radius:50%"></span></div>
+        <div>Alerts</div>
       </button>
       <button class="nav-item" data-tab="profileScreen" onclick="switchTab('profileScreen')">
         <div class="nav-icon">👤</div>
@@ -1931,6 +1952,9 @@
       if (screenId === 'trackingScreen') {
         app.renderTrackingScreen();
       }
+      if (screenId === 'alertsScreen') {
+        loadWebNotifications();
+      }
     }
 
     // Tracking screen
@@ -1994,25 +2018,57 @@
         ` : ''}
       `;
 
-      // Initialize map
-      if (activeOrder.driver_location && typeof google !== 'undefined') {
+      // Initialize map with live driver tracking
+      if (typeof google !== 'undefined') {
         setTimeout(() => {
+          const center = activeOrder.driver_location
+            ? { lat: activeOrder.driver_location.lat, lng: activeOrder.driver_location.lng }
+            : { lat: -15.4167, lng: 28.3222 };
+
           const map = new google.maps.Map(document.getElementById('liveMap'), {
             zoom: 14,
-            center: {
-              lat: activeOrder.driver_location.lat,
-              lng: activeOrder.driver_location.lng
+            center: center
+          });
+
+          const driverMarker = new google.maps.Marker({
+            position: center,
+            map: map,
+            title: activeOrder.driver_name || 'Driver',
+            icon: {
+              path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+              scale: 6,
+              fillColor: '#2E3192',
+              fillOpacity: 1,
+              strokeColor: '#fff',
+              strokeWeight: 2,
+              rotation: 0
             }
           });
 
-          new google.maps.Marker({
-            position: {
-              lat: activeOrder.driver_location.lat,
-              lng: activeOrder.driver_location.lng
-            },
-            map: map,
-            title: activeOrder.driver_name || 'Driver'
-          });
+          // Poll real driver location every 5s
+          let driverLocTimer = setInterval(async () => {
+            try {
+              const resp = await fetch('/api/orders/' + activeOrder.id + '/driver-location', {
+                headers: { 'Authorization': 'Bearer ' + app.token }
+              });
+              if (!resp.ok) return;
+              const data = await resp.json();
+              if (data.driver_location) {
+                const pos = { lat: data.driver_location.lat, lng: data.driver_location.lng };
+                driverMarker.setPosition(pos);
+                if (data.driver_location.heading) {
+                  driverMarker.setIcon({
+                    ...driverMarker.getIcon(),
+                    rotation: data.driver_location.heading
+                  });
+                }
+                map.panTo(pos);
+              }
+            } catch(e) {}
+          }, 5000);
+
+          // Store timer for cleanup
+          window._driverLocTimer = driverLocTimer;
         }, 100);
       }
     };
@@ -2029,6 +2085,84 @@
         document.head.appendChild(script);
       } catch(e) { console.error('Failed to load maps:', e); }
     }
+
+    // ─── WEB NOTIFICATIONS ────────────────────────
+    let webNotifTimer = null;
+    function startWebNotifPolling() {
+      loadWebNotifications();
+      webNotifTimer = setInterval(loadWebNotifications, 10000);
+    }
+
+    async function loadWebNotifications() {
+      if (!app.token) return;
+      try {
+        const resp = await fetch('/api/notifications', {
+          headers: { 'Authorization': 'Bearer ' + app.token }
+        });
+        if (!resp.ok) return;
+        const notifs = await resp.json();
+        const dot = document.getElementById('webNotifDot');
+        const unread = notifs.filter(n => n.read === 0).length;
+        if (dot) dot.style.display = unread > 0 ? 'block' : 'none';
+
+        const list = document.getElementById('alertsList');
+        if (!list) return;
+        if (notifs.length === 0) {
+          list.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--grey)"><div style="font-size:48px;margin-bottom:12px">🔔</div><div style="font-weight:600;font-size:16px">No notifications yet</div><div style="font-size:13px;margin-top:4px">Order updates will appear here</div></div>';
+          return;
+        }
+        const iconMap = { order: '📦', delivery: '🚛', success: '✅', info: 'ℹ️' };
+        list.innerHTML = notifs.map(n => {
+          const icon = iconMap[n.type] || '🔔';
+          const time = timeAgoWeb(n.created_at);
+          const unreadCls = n.read === 0 ? 'background:rgba(0,191,255,0.06);border-left:3px solid var(--sky)' : '';
+          return `<div class="card" style="padding:14px;margin-bottom:8px;cursor:pointer;${unreadCls}" onclick="markWebNotifRead('${n.id}', this)">
+            <div style="display:flex;align-items:flex-start;gap:10px">
+              <span style="font-size:20px">${icon}</span>
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:14px;display:flex;justify-content:space-between">
+                  <span>${n.title}</span>
+                  ${n.read === 0 ? '<span style="width:8px;height:8px;background:var(--sky);border-radius:50%;flex-shrink:0;margin-top:4px"></span>' : ''}
+                </div>
+                <div style="font-size:13px;color:var(--grey);margin-top:2px;line-height:1.4">${n.body}</div>
+                <div style="font-size:11px;color:#999;margin-top:4px">${time}</div>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+      } catch(e) { console.error('Notif error:', e); }
+    }
+
+    async function markWebNotifRead(id, el) {
+      if (!app.token) return;
+      try {
+        await fetch('/api/notifications/' + id + '/read', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + app.token }
+        });
+        if (el) el.style.background = '';
+        if (el) el.style.borderLeft = '';
+        loadWebNotifications();
+      } catch(e) {}
+    }
+
+    function timeAgoWeb(dateStr) {
+      if (!dateStr) return '';
+      const now = new Date();
+      const d = new Date(dateStr + (dateStr.includes('Z') ? '' : 'Z'));
+      const secs = Math.floor((now - d) / 1000);
+      if (secs < 60) return 'Just now';
+      if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+      if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+      return Math.floor(secs / 86400) + 'd ago';
+    }
+
+    // Start polling after login
+    const origInit = app.init.bind(app);
+    app.init = function() {
+      origInit();
+      if (this.token) startWebNotifPolling();
+    };
 
     // Initialize app
     loadGoogleMaps();
