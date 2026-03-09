@@ -370,6 +370,35 @@ router.post('/dispatch/assign', adminAuth, (req, res) => {
   db.prepare('UPDATE drivers SET status = \'on_delivery\' WHERE id = ?').run(driver_id);
   db.prepare('INSERT INTO order_events (id, order_id, event) VALUES (?,?,?)').run(uuid(), order_id, 'driver_assigned');
 
+  // Notify customer
+  db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
+    .run(uuid(), order.user_id, 'Driver Assigned', `${driver.name} has been assigned to deliver your ${order.volume}L ${order.fuel_type}. ETA: 30 min.`, 'delivery');
+
+  // Notify driver
+  db.prepare('INSERT INTO driver_notifications (id, driver_id, title, body, type, order_id) VALUES (?,?,?,?,?,?)')
+    .run(uuid(), driver_id, 'New Delivery Assigned', `You have been assigned a ${order.volume}L ${order.fuel_type} delivery (#${order.order_number}). Tap to view details.`, 'new_order', order_id);
+
+  // Admin log
+  db.prepare('INSERT INTO admin_notifications (id, title, body, type, order_id) VALUES (?,?,?,?,?)')
+    .run(uuid(), 'Driver Dispatched', `${driver.name} assigned to order #${order.order_number}`, 'dispatch', order_id);
+
+  res.json({ success: true });
+});
+
+// ─── ADMIN NOTIFICATIONS ─────────────────────────────
+router.get('/notifications', adminAuth, (req, res) => {
+  const notifs = db.prepare('SELECT * FROM admin_notifications ORDER BY created_at DESC LIMIT 50').all();
+  const unread = db.prepare('SELECT COUNT(*) as count FROM admin_notifications WHERE read = 0').get();
+  res.json({ notifications: notifs, unread_count: unread.count });
+});
+
+router.put('/notifications/:id/read', adminAuth, (req, res) => {
+  db.prepare('UPDATE admin_notifications SET read = 1 WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+router.put('/notifications/read-all', adminAuth, (req, res) => {
+  db.prepare('UPDATE admin_notifications SET read = 1').run();
   res.json({ success: true });
 });
 

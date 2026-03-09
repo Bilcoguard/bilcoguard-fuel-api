@@ -221,18 +221,30 @@ router.post('/orders', authMiddleware, (req, res) => {
   // Create initial event
   db.prepare('INSERT INTO order_events (id, order_id, event) VALUES (?,?,?)').run(uuid(), id, 'order_placed');
 
+  // Admin notification — new order
+  db.prepare('INSERT INTO admin_notifications (id, title, body, type, order_id) VALUES (?,?,?,?,?)')
+    .run(uuid(), 'New Order Received', `${req.user.name || 'Customer'} placed a ${volume}L ${fuel_type} order (#${orderNumber})`, 'new_order', id);
+
   // Auto-assign driver after 3 seconds (simulated)
   setTimeout(() => {
     db.prepare("UPDATE orders SET status = 'confirmed', progress = 5 WHERE id = ?").run(id);
     db.prepare('INSERT INTO order_events (id, order_id, event) VALUES (?,?,?)').run(uuid(), id, 'confirmed');
+    db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
+      .run(uuid(), req.user.id, 'Order Confirmed', `Your order #${orderNumber} has been confirmed and is being processed.`, 'order');
 
     setTimeout(() => {
       db.prepare("UPDATE orders SET status = 'driver_assigned', progress = 10, eta_minutes = 30 WHERE id = ?").run(id);
       db.prepare('INSERT INTO order_events (id, order_id, event) VALUES (?,?,?)').run(uuid(), id, 'driver_assigned');
+      db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
+        .run(uuid(), req.user.id, 'Driver Assigned', `Joseph Mwanza has been assigned to deliver your ${volume}L ${fuel_type}. ETA: 30 min.`, 'delivery');
 
       setTimeout(() => {
         db.prepare("UPDATE orders SET status = 'en_route', progress = 25, eta_minutes = 22 WHERE id = ?").run(id);
         db.prepare('INSERT INTO order_events (id, order_id, event) VALUES (?,?,?)').run(uuid(), id, 'en_route');
+        db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
+          .run(uuid(), req.user.id, 'Driver En Route', `Your driver is on the way! ETA: 22 minutes.`, 'delivery');
+        db.prepare('INSERT INTO admin_notifications (id, title, body, type, order_id) VALUES (?,?,?,?,?)')
+          .run(uuid(), 'Driver En Route', `Joseph Mwanza is en route for order #${orderNumber}`, 'status_update', id);
       }, 5000);
     }, 3000);
   }, 3000);
@@ -288,6 +300,28 @@ router.get('/orders/:id/track', authMiddleware, (req, res) => {
     driver_location: driverLocation,
     route: routePoints,
     speed_kmh: order.progress < 90 ? 35 + Math.floor(Math.random() * 15) : 0
+  });
+});
+
+// ─── DRIVER LIVE LOCATION (for customer tracking) ─────
+router.get('/orders/:id/driver-location', authMiddleware, (req, res) => {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  if (!order.driver_id) return res.json({ driver_location: null });
+
+  const loc = db.prepare('SELECT lat, lng, heading, speed, updated_at FROM driver_locations WHERE driver_id = ?').get(order.driver_id);
+  if (!loc) return res.json({ driver_location: null });
+
+  // Get destination coordinates
+  const dest = db.prepare('SELECT lat, lng FROM locations WHERE id = ?').get(order.location_id);
+
+  res.json({
+    driver_location: { lat: loc.lat, lng: loc.lng, heading: loc.heading, speed: loc.speed },
+    destination: dest ? { lat: dest.lat, lng: dest.lng } : null,
+    updated_at: loc.updated_at,
+    driver_name: order.driver_name,
+    status: order.status,
+    eta_minutes: order.eta_minutes
   });
 });
 

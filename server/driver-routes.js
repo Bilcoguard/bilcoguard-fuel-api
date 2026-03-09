@@ -177,10 +177,37 @@ router.put('/orders/:id/status', driverAuth, (req, res) => {
 
   db.prepare('INSERT INTO order_events (id, order_id, event) VALUES (?,?,?)').run(uuid(), req.params.id, status);
 
+  const driver = db.prepare('SELECT name FROM drivers WHERE id = ?').get(req.driver.id);
+  const driverName = driver ? driver.name : 'Your driver';
+
+  // Customer notifications for each status
+  if (status === 'en_route') {
+    db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
+      .run(uuid(), order.user_id, 'Driver En Route', `${driverName} is on the way with your ${order.volume}L ${order.fuel_type}. ETA: ${etaMap[status]} min.`, 'delivery');
+    db.prepare('INSERT INTO admin_notifications (id, title, body, type, order_id) VALUES (?,?,?,?,?)')
+      .run(uuid(), 'Driver En Route', `${driverName} started delivery for order #${order.order_number}`, 'status_update', req.params.id);
+  }
+  if (status === 'arriving') {
+    db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
+      .run(uuid(), order.user_id, 'Driver Arriving', `${driverName} is almost at your location! Please be ready.`, 'delivery');
+    db.prepare('INSERT INTO admin_notifications (id, title, body, type, order_id) VALUES (?,?,?,?,?)')
+      .run(uuid(), 'Driver Arriving', `${driverName} arriving at delivery location for order #${order.order_number}`, 'status_update', req.params.id);
+  }
+  if (status === 'fueling') {
+    db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
+      .run(uuid(), order.user_id, 'Fueling In Progress', `${driverName} is now fueling your vehicle with ${order.volume}L ${order.fuel_type}.`, 'delivery');
+  }
   if (status === 'delivered') {
     db.prepare('UPDATE drivers SET status = \'available\', total_deliveries = total_deliveries + 1 WHERE id = ?').run(req.driver.id);
     db.prepare('INSERT INTO notifications (id, user_id, title, body, type) VALUES (?,?,?,?,?)')
-      .run(uuid(), order.user_id, 'Delivery Complete', `Your ${order.volume}L ${order.fuel_type} delivery is complete!`, 'success');
+      .run(uuid(), order.user_id, 'Delivery Complete', `Your ${order.volume}L ${order.fuel_type} delivery is complete! Thank you for using Bilcoguard Fuel.`, 'success');
+    // Driver notification
+    const earning = (order.total * 0.15).toFixed(2);
+    db.prepare('INSERT INTO driver_notifications (id, driver_id, title, body, type, order_id) VALUES (?,?,?,?,?,?)')
+      .run(uuid(), req.driver.id, 'Delivery Completed', `You completed order #${order.order_number}. Earned K${earning}.`, 'earning', req.params.id);
+    // Admin notification
+    db.prepare('INSERT INTO admin_notifications (id, title, body, type, order_id) VALUES (?,?,?,?,?)')
+      .run(uuid(), 'Delivery Completed', `${driverName} completed order #${order.order_number} (${order.volume}L ${order.fuel_type})`, 'completed', req.params.id);
   }
 
   const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
@@ -218,6 +245,37 @@ router.get('/earnings', driverAuth, (req, res) => {
     this_month: { amount: thisMonth.amount, deliveries: thisMonth.deliveries },
     recent_deliveries: recentDeliveries
   });
+});
+
+// ─── DRIVER NOTIFICATIONS ────────────────────────────
+router.get('/notifications', driverAuth, (req, res) => {
+  const notifs = db.prepare('SELECT * FROM driver_notifications WHERE driver_id = ? ORDER BY created_at DESC LIMIT 30').all(req.driver.id);
+  const unread = db.prepare('SELECT COUNT(*) as count FROM driver_notifications WHERE driver_id = ? AND read = 0').get(req.driver.id);
+  res.json({ notifications: notifs, unread_count: unread.count });
+});
+
+router.put('/notifications/:id/read', driverAuth, (req, res) => {
+  db.prepare('UPDATE driver_notifications SET read = 1 WHERE id = ? AND driver_id = ?').run(req.params.id, req.driver.id);
+  res.json({ success: true });
+});
+
+router.put('/notifications/read-all', driverAuth, (req, res) => {
+  db.prepare('UPDATE driver_notifications SET read = 1 WHERE driver_id = ?').run(req.driver.id);
+  res.json({ success: true });
+});
+
+// ─── LIVE LOCATION ──────────────────────────────────
+router.put('/location', driverAuth, (req, res) => {
+  const { lat, lng, heading, speed } = req.body;
+  if (lat == null || lng == null) return res.status(400).json({ error: 'lat and lng required' });
+
+  db.prepare(`
+    INSERT INTO driver_locations (driver_id, lat, lng, heading, speed, updated_at)
+    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(driver_id) DO UPDATE SET lat=excluded.lat, lng=excluded.lng, heading=excluded.heading, speed=excluded.speed, updated_at=CURRENT_TIMESTAMP
+  `).run(req.driver.id, lat, lng, heading || 0, speed || 0);
+
+  res.json({ success: true });
 });
 
 module.exports = router;
