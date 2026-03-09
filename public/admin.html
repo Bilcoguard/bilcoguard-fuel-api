@@ -1279,10 +1279,21 @@
                         <div class="card-header">
                             <div>
                                 <h3 class="card-title">Fleet Tracker</h3>
-                                <p class="card-subtitle"><span id="activeVehicleCount">0</span> of <span id="totalVehicleCount">0</span> vehicles active</p>
+                                <p class="card-subtitle"><span id="activeVehicleCount">0</span> of <span id="totalVehicleCount">0</span> vehicles active &bull; Auto-refreshes every 10s</p>
                             </div>
                         </div>
-                        <div id="fleetMap" style="width: 100%; height: 400px; border-radius: 8px; overflow: hidden;"></div>
+                        <div id="fleetMap" style="width: 100%; height: 500px; border-radius: 8px; overflow: hidden;"></div>
+                    </div>
+
+                    <!-- Live Trips Panel -->
+                    <div id="liveTripsPanel" class="fleet-tracker-card" style="margin-top: 16px; display: none;">
+                        <div class="card-header">
+                            <div>
+                                <h3 class="card-title">Live Trips</h3>
+                                <p class="card-subtitle">Active deliveries in real-time</p>
+                            </div>
+                        </div>
+                        <div id="liveTripsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; padding: 16px;"></div>
                     </div>
 
                     <div class="stats-grid">
@@ -2557,107 +2568,214 @@
                 document.getElementById('sidebar').classList.remove('mobile-hidden');
             }
         });
-        // Fleet Tracker Map
+        // Fleet Tracker Map — Live GPS with Google Maps
         let map = null;
         let markers = [];
+        let routeLines = [];
         let activeInfoWindow = null;
+        let fleetRefreshInterval = null;
+        let directionsService = null;
+
+        // Tanker SVG icon for active deliveries
+        function makeTankerSVG(heading, isActive) {
+            const color = isActive ? '#00BFFF' : '#2E3192';
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+                <g transform="rotate(${heading || 0} 18 18)">
+                <circle cx="18" cy="18" r="15" fill="${color}" opacity="0.2"/>
+                <rect x="11" y="6" width="14" height="20" rx="7" fill="${color}"/>
+                <rect x="13" y="8" width="10" height="16" rx="5" fill="${isActive ? '#0099cc' : '#3a3db8'}" opacity="0.5"/>
+                <rect x="12" y="4" width="12" height="6" rx="3" fill="${isActive ? '#ffffff' : '#00BFFF'}"/>
+                <rect x="13" y="26" width="10" height="2" rx="1" fill="#1a1a5e"/>
+                </g></svg>`;
+            return {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+                scaledSize: new google.maps.Size(36, 36),
+                anchor: new google.maps.Point(18, 18)
+            };
+        }
 
         async function initFleetMap() {
             const mapElement = document.getElementById('fleetMap');
             if (!mapElement) return;
 
-            // Initialize map centered on Lusaka, Zambia
             map = new google.maps.Map(mapElement, {
                 zoom: 12,
                 center: { lat: -15.4167, lng: 28.2833 },
+                disableDefaultUI: false,
+                zoomControl: true,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: true,
                 styles: [
-                    {
-                        featureType: 'all',
-                        elementType: 'labels.text.fill',
-                        stylers: [{ color: '#2E3192' }]
-                    }
+                    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+                    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+                    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9d6e5' }] },
+                    { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#eef1f5' }] },
+                    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+                    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#d4dbe8' }] }
                 ]
             });
 
-            // Load vehicle locations
+            directionsService = new google.maps.DirectionsService();
             await updateFleetMapMarkers();
+
+            // Auto-refresh every 10 seconds
+            if (fleetRefreshInterval) clearInterval(fleetRefreshInterval);
+            fleetRefreshInterval = setInterval(() => updateFleetMapMarkers(), 10000);
         }
 
         async function updateFleetMapMarkers() {
             if (!map) return;
 
-            // Clear existing markers
+            // Clear existing
             markers.forEach(m => m.setMap(null));
             markers = [];
+            routeLines.forEach(r => r.setMap(null));
+            routeLines = [];
 
             try {
-                // Fetch vehicles and drivers
-                const [vehiclesResp, driversResp] = await Promise.all([
-                    fetch('/api/admin/vehicles', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } }),
-                    fetch('/api/admin/drivers', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } })
-                ]);
-
-                const vehicles = (await vehiclesResp.json()) || [];
-                const drivers = (await driversResp.json()) || [];
-
-                // Fetch vehicle locations
-                const locResp = await fetch('/api/admin/vehicles/locations', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } });
+                const locResp = await fetch('/api/admin/vehicles/locations', {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+                });
                 const locations = (await locResp.json()) || [];
 
                 let activeCount = 0;
-                const lusaka = { lat: -15.4167, lng: 28.2833 };
+                const liveTripsGrid = document.getElementById('liveTripsGrid');
+                const liveTripsPanel = document.getElementById('liveTripsPanel');
+                let tripsHTML = '';
 
-                // Create markers for each vehicle
                 locations.forEach(loc => {
                     if (!loc.lat || !loc.lng) return;
 
-                    const markerColor = loc.status === 'idle' ? '#2E3192' : '#00BFFF';
+                    const isActive = loc.status !== 'idle';
+                    if (isActive) activeCount++;
+
+                    // Tanker icon for active, circle for idle
                     const marker = new google.maps.Marker({
                         position: { lat: loc.lat, lng: loc.lng },
                         map: map,
-                        title: loc.name,
-                        icon: {
+                        title: `${loc.name} - ${loc.plate}`,
+                        icon: isActive ? makeTankerSVG(loc.heading, true) : {
                             path: google.maps.SymbolPath.CIRCLE,
-                            scale: 10,
-                            fillColor: markerColor,
-                            fillOpacity: 0.8,
+                            scale: 8,
+                            fillColor: '#2E3192',
+                            fillOpacity: 0.6,
                             strokeColor: '#FFFFFF',
                             strokeWeight: 2
-                        }
+                        },
+                        zIndex: isActive ? 100 : 1
                     });
 
-                    if (loc.status !== 'idle') {
-                        activeCount++;
+                    // Rich info window
+                    let infoHTML = `<div style="padding:10px;font-family:system-ui;min-width:240px;">`;
+                    infoHTML += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">`;
+                    infoHTML += `<div style="width:32px;height:32px;border-radius:50%;background:${isActive ? '#00BFFF' : '#2E3192'};display:flex;align-items:center;justify-content:center;">`;
+                    infoHTML += `<span style="color:#fff;font-size:12px;font-weight:700;">${(loc.driver_name || 'N/A').split(' ').map(n=>n[0]).join('')}</span></div>`;
+                    infoHTML += `<div><strong style="color:#2E3192;font-size:14px;">${loc.name}</strong>`;
+                    infoHTML += `<div style="color:#666;font-size:12px;">${loc.plate}</div></div></div>`;
+
+                    if (loc.driver_name) {
+                        infoHTML += `<div style="color:#333;font-size:13px;">Driver: <strong>${loc.driver_name}</strong></div>`;
                     }
 
-                    // Create info window content
-                    const infoContent = `
-                        <div style="padding: 8px; font-family: system-ui; font-size: 13px; min-width: 200px;">
-                            <strong style="color: #2E3192;">${loc.name}</strong><br>
-                            <span style="color: #666;">Plate: ${loc.plate}</span><br>
-                            ${loc.driver_name ? `<span style="color: #666;">Driver: ${loc.driver_name}</span><br>` : ''}
-                            <span style="color: #666;">Status: <strong>${loc.status}</strong></span><br>
-                            <span style="color: #999; font-size: 12px;">Lat: ${loc.lat.toFixed(4)}, Lng: ${loc.lng.toFixed(4)}</span>
-                        </div>
-                    `;
+                    if (isActive) {
+                        const statusColors = { en_route: '#00BFFF', arriving: '#F59E0B', fueling: '#F59E0B', driver_assigned: '#A7A8AB' };
+                        const statusLabel = loc.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        infoHTML += `<div style="margin:6px 0;"><span style="display:inline-block;padding:2px 8px;border-radius:10px;background:${statusColors[loc.status] || '#666'};color:#fff;font-size:11px;font-weight:600;">${statusLabel}</span></div>`;
+                        infoHTML += `<div style="color:#333;font-size:13px;">Order: <strong>${loc.order_number}</strong></div>`;
+                        infoHTML += `<div style="color:#333;font-size:13px;">${loc.fuel_type} ${loc.volume}L &bull; K${Number(loc.total).toFixed(0)}</div>`;
+                        infoHTML += `<div style="color:#333;font-size:13px;">To: ${loc.location_name || 'Unknown'}</div>`;
+                        infoHTML += `<div style="color:#333;font-size:13px;">Customer: ${loc.customer_name || 'Unknown'}</div>`;
+                        if (loc.eta_minutes) infoHTML += `<div style="color:#00BFFF;font-size:13px;font-weight:600;">ETA: ${loc.eta_minutes} min</div>`;
+                        if (loc.speed > 0) infoHTML += `<div style="color:#666;font-size:12px;">Speed: ${Math.round(loc.speed * 3.6)} km/h</div>`;
 
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: infoContent,
-                        ariaLabel: loc.name
-                    });
+                        // Progress bar
+                        infoHTML += `<div style="margin-top:6px;background:#eee;border-radius:4px;height:6px;overflow:hidden;">`;
+                        infoHTML += `<div style="width:${loc.progress || 0}%;height:100%;background:linear-gradient(90deg,#2E3192,#00BFFF);border-radius:4px;"></div></div>`;
+                        infoHTML += `<div style="color:#999;font-size:11px;text-align:right;">${loc.progress || 0}% complete</div>`;
+                    } else {
+                        infoHTML += `<div style="color:#A7A8AB;font-size:13px;font-weight:600;">Idle</div>`;
+                    }
 
+                    if (loc.updated_at) {
+                        const ago = Math.round((Date.now() - new Date(loc.updated_at + 'Z').getTime()) / 1000);
+                        infoHTML += `<div style="color:#999;font-size:11px;margin-top:4px;">GPS updated ${ago < 60 ? ago + 's' : Math.round(ago/60) + 'm'} ago</div>`;
+                    }
+                    infoHTML += `</div>`;
+
+                    const infoWindow = new google.maps.InfoWindow({ content: infoHTML });
                     marker.addListener('click', () => {
                         if (activeInfoWindow) activeInfoWindow.close();
                         infoWindow.open(map, marker);
                         activeInfoWindow = infoWindow;
+
+                        // If active, draw route to destination
+                        if (isActive && loc.destination_lat && loc.destination_lng && directionsService) {
+                            directionsService.route({
+                                origin: { lat: loc.lat, lng: loc.lng },
+                                destination: { lat: loc.destination_lat, lng: loc.destination_lng },
+                                travelMode: 'DRIVING'
+                            }, (res, st) => {
+                                if (st === 'OK') {
+                                    const routeLine = new google.maps.Polyline({
+                                        path: res.routes[0].overview_path,
+                                        geodesic: true,
+                                        strokeColor: '#2E3192',
+                                        strokeOpacity: 0.6,
+                                        strokeWeight: 4,
+                                        map: map
+                                    });
+                                    routeLines.push(routeLine);
+                                    // Add destination marker
+                                    const destMarker = new google.maps.Marker({
+                                        position: { lat: loc.destination_lat, lng: loc.destination_lng },
+                                        map: map,
+                                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8,
+                                            fillColor: '#EF4444', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+                                    });
+                                    markers.push(destMarker);
+                                }
+                            });
+                        }
                     });
 
                     markers.push(marker);
+
+                    // Build live trip card HTML for active deliveries
+                    if (isActive) {
+                        const statusColors = { en_route: '#00BFFF', arriving: '#F59E0B', fueling: '#F59E0B', driver_assigned: '#A7A8AB' };
+                        const statusLabel = loc.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        tripsHTML += `
+                        <div style="background:#fff;border-radius:10px;padding:14px;border-left:4px solid ${statusColors[loc.status] || '#2E3192'};box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:pointer;" onclick="map.panTo({lat:${loc.lat},lng:${loc.lng}});map.setZoom(15);">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                <strong style="color:#2E3192;font-size:14px;">${loc.order_number}</strong>
+                                <span style="padding:2px 8px;border-radius:10px;background:${statusColors[loc.status]};color:#fff;font-size:11px;font-weight:600;">${statusLabel}</span>
+                            </div>
+                            <div style="color:#333;font-size:13px;">${loc.driver_name || 'Unassigned'} &bull; ${loc.plate}</div>
+                            <div style="color:#666;font-size:12px;margin-top:2px;">${loc.fuel_type} ${loc.volume}L → ${loc.location_name || 'Unknown'}</div>
+                            <div style="color:#666;font-size:12px;">Customer: ${loc.customer_name || 'Unknown'}</div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                                <div style="flex:1;background:#eee;border-radius:4px;height:5px;margin-right:10px;overflow:hidden;">
+                                    <div style="width:${loc.progress || 0}%;height:100%;background:linear-gradient(90deg,#2E3192,#00BFFF);border-radius:4px;"></div>
+                                </div>
+                                <span style="color:#2E3192;font-size:12px;font-weight:600;">${loc.progress || 0}%</span>
+                            </div>
+                            ${loc.eta_minutes ? `<div style="color:#00BFFF;font-size:12px;font-weight:600;margin-top:4px;">ETA: ${loc.eta_minutes} min${loc.speed > 0 ? ' &bull; ' + Math.round(loc.speed * 3.6) + ' km/h' : ''}</div>` : ''}
+                        </div>`;
+                    }
                 });
 
                 // Update counters
                 document.getElementById('activeVehicleCount').textContent = activeCount;
                 document.getElementById('totalVehicleCount').textContent = locations.length;
+
+                // Update live trips panel
+                if (activeCount > 0) {
+                    liveTripsPanel.style.display = 'block';
+                    liveTripsGrid.innerHTML = tripsHTML;
+                } else {
+                    liveTripsPanel.style.display = 'none';
+                }
 
             } catch (e) {
                 console.error('Error loading fleet locations:', e);
